@@ -5,6 +5,7 @@ import ECGCanvas from './components/ECGCanvas';
 import SPO2Canvas from './components/SPO2Canvas';
 import { ECGBuffer } from './engine/ECGBuffer';
 import { RhythmEngine } from './engine/RhythmEngine';
+import HrDisplay from './components/HrDisplay'; // ←追加！
 
 function App() {
   // 心拍数とSpO2の表示用ステート（画面右側の数値表示）
@@ -61,16 +62,15 @@ function App() {
         {/* 右側：HRとSpO2の数値表示（実数値） */}
         <div className="flex flex-col space-y-6">
           {/* HR表示 */}
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-green-400 text-lg">HR</span>
-            </div>
-            <div className="flex items-baseline space-x-2">
-              <span className="text-green-300 text-6xl font-bold">
-                {hr}
-              </span>
-            </div>
-          </div>
+// 省略...
+
+{/* HR表示（ドラッグ式） */}
+<div>
+  <div className="flex items-center space-x-2">
+    <span className="text-green-400 text-lg">HR</span>
+  </div>
+  <HrDisplay hr={hr} setHr={setHr} />
+</div>
 
           {/* SpO2表示 */}
           <div>
