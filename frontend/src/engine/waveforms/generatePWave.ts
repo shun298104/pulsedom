@@ -116,7 +116,7 @@ export function generateQRST({
 
   // 各波の幅（標準偏差）
   let sigma_q = qrsDur / 18;
-  let sigma_r = qrsDur / 24;
+  let sigma_r = 0.015;
   let sigma_s = qrsDur / 18;
 
   // 完全右脚ブロック（RBBB）の場合：S波が遅れる

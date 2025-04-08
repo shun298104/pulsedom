@@ -12,6 +12,11 @@ function App() {
   const [hr, setHr] = useState(80);
   const [spo2, setSpo2] = useState(100);
 
+  const handleHrChange = (newHr: number) => {
+    setHr(newHr);                      // ← Reactの描画用
+    engineRef.current?.setHr(newHr);  // ← 実波形生成に反映！
+  };
+  
   // ECGバッファとリズムエンジンの参照保持（useRefにより永続的に保持）
   const bufferRef = useRef<ECGBuffer | null>(null);
   const engineRef = useRef<RhythmEngine | null>(null);
@@ -31,19 +36,22 @@ function App() {
     bufferRef.current = buffer;
     engineRef.current = engine;
 
-    console.log('[App] wave.length =', buffer.getArray().length); // 初期バッファ長の確認
-
-    // 10msごとにエンジンを進めて波形を更新するタイマー処理
+    // 5sごとにエンジンを進めて波形を更新するタイマー処理
     const interval = setInterval(() => {
-      engine.step(10); // 心電図を1ステップ進める（10ms単位）
+      engine.step(5); // 心電図を1ステップ進める（10ms単位）
 
       // バッファから現在の波形を取り出してステートに反映（描画トリガー）
       setWave([...buffer.getArray()]); // ← wave更新！
-    }, 10);
+      // App.tsx の useEffect の setInterval 内とかに
+      const arr = buffer.getArray();
+      const max = Math.max(...arr);
+      console.log("[wave] max = ", max);
+    }, 5);
 
     // クリーンアップ（再マウント時やunmount時にタイマー停止）
     return () => clearInterval(interval);
-  }, [hr]); // 心拍数が変化したときだけ再生成される
+
+  }, []); // 心拍数が変化したときだけ再生成される
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -62,14 +70,13 @@ function App() {
         {/* 右側：HRとSpO2の数値表示（実数値） */}
         <div className="flex flex-col space-y-6">
           {/* HR表示 */}
-// 省略...
 
 {/* HR表示（ドラッグ式） */}
 <div>
   <div className="flex items-center space-x-2">
     <span className="text-green-400 text-lg">HR</span>
   </div>
-  <HrDisplay hr={hr} setHr={setHr} />
+  <HrDisplay hr={hr} setHr={handleHrChange} />
 </div>
 
           {/* SpO2表示 */}

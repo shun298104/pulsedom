@@ -2,6 +2,7 @@
 import { generatePWave, generateQRST } from './waveforms/generatePWave';
 import { ECGBuffer } from './ECGBuffer';
 
+
 export class RhythmEngine {
   private buffer: ECGBuffer;
   private hr: number;
@@ -10,11 +11,7 @@ export class RhythmEngine {
   private currentWave: number[] = [];
   private waveIndex = 0;
 
-  constructor({
-    buffer,
-    hr = 80,
-    stepMs = 10,
-  }: {
+  constructor({ buffer, hr = 80, stepMs = 5 }: {
     buffer: ECGBuffer;
     hr?: number;
     stepMs?: number;
@@ -22,22 +19,19 @@ export class RhythmEngine {
     this.buffer = buffer;
     this.hr = hr;
     this.stepMs = stepMs;
-    this.timeMs = 0;
-
-    this.generateNewBeat(); // 初期波形1拍分生成
-    
   }
 
+  public setHr(newHr: number) {
+    this.hr = newHr; // ← ここでちゃんと更新
+  }
+  
   private generateNewBeat() {
     const p = generatePWave({ hr: this.hr });
     const qrst = generateQRST({ hr: this.hr });
-  
-    console.log(`[DEBUG] p.length = ${p.length}, qrst.length = ${qrst.length}`);
-  
-    const samplingRate = 100; // 1秒あたり200サンプル = dt 5ms
+      
+    const samplingRate = 200; // 1秒あたり200サンプル = dt 5ms
 
     const PQ_DELAY_MS = 110;
-    const pWaveDurationMs = (p.length / samplingRate) * 1000; // ← ここでP波長さ（ms）を取得
 
     const pqSamples = Math.round((PQ_DELAY_MS / 1000) * samplingRate); // → 22サンプル
 
@@ -45,8 +39,7 @@ export class RhythmEngine {
 
     this.currentWave = [...p, ...pqGap, ...qrst];
     this.waveIndex = 0;
-  
-    console.log('[RhythmEngine] Generated new beat: length =', this.currentWave.length);
+
   }
   
 
@@ -62,9 +55,9 @@ export class RhythmEngine {
       }
   
       const val = this.currentWave[this.waveIndex] || 0;
-      console.log(`[RhythmEngine] pushing wave[${this.waveIndex}] = ${val}`);
       this.buffer.push(val);
-      this.waveIndex++;
+
+    this.waveIndex++;
     }
   }
   

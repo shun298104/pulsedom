@@ -1,6 +1,6 @@
 import { CardiacNode } from "./CardiacNode";
 
-const dt = 10;
+const dt = 5;
 let t = 0;
 
 const SA = new CardiacNode('SA', 75, 200);

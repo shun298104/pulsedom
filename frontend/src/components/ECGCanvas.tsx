@@ -1,3 +1,4 @@
+// src/components/ECGCanvas.tsx
 import React, { useEffect, useRef } from 'react';
 
 interface ECGCanvasProps {
@@ -7,9 +8,10 @@ interface ECGCanvasProps {
 
 function ECGCanvas({ hr, wave }: ECGCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const waveRef = useRef<number[]>([]); // ← 最新waveをRefで保持
+  const waveRef = useRef<number[]>([]);
+  const pointerRef = useRef<number>(0); // ← 現在描画しているx位置
+  const lastYRef = useRef<number | null>(null); // ← 直前のY座標を保持
 
-  // wave更新のたびにRefを書き換え（再描画トリガーにはしない）
   useEffect(() => {
     waveRef.current = wave;
   }, [wave]);
@@ -18,38 +20,46 @@ function ECGCanvas({ hr, wave }: ECGCanvasProps) {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-  
+
     const width = canvas.width;
     const height = canvas.height;
     const midY = height / 2;
     const scaleY = 40;
-  
-    let animationFrameId: number;
-  
+
+    // 背景初期化
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, width, height);
+
     const draw = () => {
       const wave = waveRef.current;
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, width, height);
-  
-      ctx.beginPath();
-      ctx.strokeStyle = '#00FF00';
-      ctx.lineWidth = 2;
-  
-      const start = Math.max(0, wave.length - width); // ← ここ安全に
-      for (let x = 0; x < width; x++) {
-        const i = start + x;
-        const y = midY - (wave[i] || 0) * scaleY;
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      const x = pointerRef.current;
+      const y = midY - (wave[wave.length - 1] || 0) * scaleY;
+    
+      // 背景：描画中の縦ラインだけクリア
+      ctx.clearRect(x, 0, 2, height);
+    
+      // ← 巻き戻し検知（左端に戻った瞬間は線を引かない）
+      const isWrapAround = x === 0;
+    
+      if (lastYRef.current !== null && !isWrapAround) {
+        ctx.beginPath();
+        ctx.moveTo((x - 1 + width) % width, lastYRef.current!);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
-  
-      ctx.stroke();
-      animationFrameId = requestAnimationFrame(draw);
+    
+      lastYRef.current = y;
+      pointerRef.current = (x + 1) % width;
+    
+      requestAnimationFrame(draw);
     };
-  
-    animationFrameId = requestAnimationFrame(draw); // ← ループスタート忘れず！
-  
-    return () => cancelAnimationFrame(animationFrameId);
+    requestAnimationFrame(draw);
+
+    return () => {
+      // クリーンアップ
+    };
   }, []);
 
   return (
