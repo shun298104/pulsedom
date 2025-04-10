@@ -1,16 +1,19 @@
+import { ECG_CONFIG } from '../../constants'; 
+
 export function generatePWave({
   hr = 80,                    // 心拍数（bpm）デフォルト80
   sinusStatus = "normal",     // 洞調律の状態：normal / LAE / RAE / ectopic / PM
   mgnfy = 1.0,                 // 波形の倍率（表示の拡大率）
-  samplingRate = 200,         // サンプリングレート（1秒あたりの点数）
   matFlag = false,            // 多源性P波（MAT）フラグ：trueでランダム極性
 }: {
   hr?: number;
   sinusStatus?: string;
   mgnfy?: number;
-  samplingRate?: number;
   matFlag?: boolean;
 }): number[] {
+
+  const { samplingRate, stepMs: dt } = ECG_CONFIG;
+
   const wave: number[] = [];
 
   // 標準的なP波持続（秒）
@@ -51,13 +54,13 @@ export function generatePWave({
   }
 
   const numSamples = Math.floor(duration * samplingRate); // 出力波形の点数
-  const dt = 1 / samplingRate;                             // サンプリング間隔（秒）
   const rightCenter = duration / 2;                        // 右房成分の中心時間
   const leftCenter = leftOffset + duration / 2;            // 左房成分の中心時間
 
   // P波の時間波形を1点ずつ計算
   for (let i = 0; i < numSamples; i++) {
-    const t = i * dt;
+    const t = i * dt /1000; // 時間（秒）に変換
+
     // ガウス関数で左右房成分を生成
     const right = gaussian(rightAmp, t, rightCenter, duration, GAUSSIAN_STD_DEV);
     const left = gaussian(leftAmp, t, leftCenter, duration, GAUSSIAN_STD_DEV);
@@ -85,7 +88,6 @@ export function generateQRST({
   stAmp = 0.02,            // 🆕 STセグメントの高さ（通常は0.02〜0.05mV程度）
   stOffset = 0.06,         // 🆕 R波からT波までの距離（STセグメント長）
   mgnfy = 1.0,
-  samplingRate = 200,
 }: {
   hr?: number;
   sinusStatus?: string;
@@ -97,10 +99,11 @@ export function generateQRST({
   stAmp?: number;
   stOffset?: number;
   mgnfy?: number;
-  samplingRate?: number;
 }): number[] {
+
+  const { samplingRate, stepMs: dt } = ECG_CONFIG;
+
   const waveform: number[] = [];
-  const dt = 1 / samplingRate;
 
   // QT時間（QTc補正）※最低限の生理値に補正
   let qt = hr > 50 ? 0.35 * Math.pow(60 / hr, 0.75) : 0.4;
@@ -116,7 +119,7 @@ export function generateQRST({
 
   // 各波の幅（標準偏差）
   let sigma_q = qrsDur / 18;
-  let sigma_r = 0.015;
+  let sigma_r = qrsDur / 24;
   let sigma_s = qrsDur / 18;
 
   // 完全右脚ブロック（RBBB）の場合：S波が遅れる
@@ -135,7 +138,7 @@ export function generateQRST({
   const n = Math.floor((mu_t + 0.4) * samplingRate);
 
   for (let i = 0; i < n; i++) {
-    const t = i * dt;
+    const t = i * dt / 1000;
 
     // QRS複合体（3成分の合成）
     const qrs = q * Math.exp(-((t - mu_q) ** 2) / (2 * sigma_q ** 2)) +
@@ -156,6 +159,7 @@ export function generateQRST({
     // 合成して倍率適用＋小数第2位で丸め
     const y = (qrs + st + twave) * mgnfy;
     waveform.push(Math.round(y * 100) / 100);
+
   }
 
   return waveform;

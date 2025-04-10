@@ -3,5 +3,9 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  "compilerOptions": {
+    "target": "es2022",   // ← これ追加・修正
+    "lib": ["dom", "es2022"],  // ← これも
+  }
 }

@@ -1,62 +1,71 @@
-import { useEffect, useRef } from 'react';
-import React from 'react';
+// src/components/SPO2Canvas.tsx
+import React, { useEffect, useRef } from 'react';
+import { WaveBuffer } from '../engine/WaveBuffer';
 
 interface SPO2CanvasProps {
-  spo2: number;
   hr: number;
+  bufferRef: React.MutableRefObject<{ getArray: () => number[] } | null>;
 }
 
-function SPO2Canvas({ spo2, hr }: SPO2CanvasProps) {
+const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const offsetRef = useRef(0);
-  const lastFrameTimeRef = useRef(performance.now());
-  const scrollSpeed = 60; // px/sec 固定
+  const pointerRef = useRef<number>(0);
+  const lastYRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const width = canvas.width;
     const height = canvas.height;
-    const midY = height / 2;
-    const amp = 30; // 振幅
-    const freq = hr / 60; // 周期（Hz）：1拍/秒 × HR[拍/分] / 60
+    const baseline = height / 2;
+    const gain = height * 0.4;
 
-    lastFrameTimeRef.current = performance.now();
+    const draw = () => {
+      const wave = bufferRef.current?.getArray() ?? [];
+      const from = pointerRef.current;
+      const to = wave.length;
+      const newPoints = wave.slice(from, to);
 
-    const draw = (now: number) => {
-      const delta = now - lastFrameTimeRef.current;
-      lastFrameTimeRef.current = now;
-
-      // 背景リセット
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, width, height);
-
-      // 波形描画
+      ctx.strokeStyle = '#00FFFF'; // cyan
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.strokeStyle = '#00FFFF';
-      ctx.lineWidth = 2;
 
-      const timeOffset = offsetRef.current;
-      for (let x = 0; x < width; x++) {
-        const t = (x + timeOffset) / 1000; // t[秒]
-        const y = midY - amp * Math.sin(2 * Math.PI * freq * t);
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      for (let i = 0; i < newPoints.length; i++) {
+        const x = (from + i) % width;
+        const y = baseline - newPoints[i] * gain;
+
+        if (lastYRef.current === null || x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        lastYRef.current = y;
       }
 
       ctx.stroke();
-
-      offsetRef.current = (offsetRef.current + scrollSpeed * (delta / 1000)) % 1000;
-
+      pointerRef.current = to;
       requestAnimationFrame(draw);
     };
 
-    requestAnimationFrame(draw);
-  }, [hr]);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pointerRef.current = 0;
+    lastYRef.current = null;
 
-  return <canvas ref={canvasRef} width={800} height={100} className="bg-black border border-cyan-500" />;
-}
+    requestAnimationFrame(draw);
+  }, [bufferRef]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={800}
+      height={100}
+      className="border border-cyan-400 bg-gray-900"
+    />
+  );
+};
 
 export default SPO2Canvas;
