@@ -29,28 +29,29 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) =
 
   const handlePointerUp = () => {
     startYRef.current = null;
-    if (tempValRef.current !== localVal) {
-      setValue(tempValRef.current);
-    }
-    console.log("🔥 VitalDisplay変更要求:", tempValRef.current);
     setValue(tempValRef.current);
-};
+    console.log("🔥 VitalDisplay変更要求:", tempValRef.current);
+  };
 
-  const getColor = (): string => {
-    if (param.isCritical(localVal)) return 'text-red-400';
-    if (param.isWarning(localVal)) return 'text-yellow-300';
-    return param.color;
+  const getBgColor = (): string => {
+    if (param.isCritical(localVal)) return 'bg-red-500';
+    if (param.isWarning(localVal)) return 'bg-yellow-500';
+    return 'bg-black';
+  };
+
+  const getTextColor = (): string => {
+    return param.color; // 常に固定色
   };
 
   return (
-    <div className="select-none cursor-ns-resize rounded-xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out"
+    <div
+      className={`select-none cursor-ns-resize rounded-xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out ${getBgColor()}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      style={{ backgroundColor: 'black' }}
     >
-      <span className={`text-6xl font-bold ${getColor()}`}>
+      <span className={`text-6xl font-bold ${getTextColor()}`}>
         {param.format(localVal)}
       </span>
       <span className="ml-2 text-gray-400 text-xl">{param.unit}</span>

@@ -1,28 +1,40 @@
-// src/components/ECGCanvas.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface ECGCanvasProps {
   hr: number;
   bufferRef: React.MutableRefObject<{ getArray: () => number[] } | null>;
-  stepMs?: number;
-  drawPoints?: number;
 }
 
-const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef, stepMs = 20, drawPoints = 5 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const xPointerRef = useRef(0);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  // ResizeObserverでサイズ監視
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setSize({ width, height });
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !bufferRef.current) return;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx || size.width === 0 || size.height === 0) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const baseline = height / 2;
-    const gain = height * 0.4;
+    const baseline = size.height / 2;
+    const gain = size.height * 0.4;
+    const stepMs = 20;
 
     let animationId: number;
     let lastDrawTime = performance.now();
@@ -33,51 +45,38 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef, stepMs = 20, drawP
         lastDrawTime = time;
 
         const wave = bufferRef.current?.getArray() ?? [];
-        const latestSamples = wave.slice(-drawPoints);
+        const latestwave = wave.slice(-size.width);
 
-        for (let i = 0; i < latestSamples.length; i++) {
-          const x = (xPointerRef.current + i) % width;
-          const y = baseline - latestSamples[i] * gain;
-          console.log(i, latestSamples[i]);
+        ctx.clearRect(0, 0, size.width, size.height);
+        ctx.beginPath();
+        ctx.strokeStyle = 'lime';
+        ctx.lineWidth = 1;
 
-          ctx.clearRect(x, 0, 1, height);
-
-          const prev = i === 0 ? lastPointRef.current : {
-            x: (x - 1 + width) % width,
-            y: baseline - latestSamples[i - 1] * gain
-          };
-
-          ctx.beginPath();
-          if (!prev || Math.abs(prev.y - y) > height) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.moveTo(prev.x, prev.y);
-            ctx.lineTo(x, y);
-          }
-          ctx.strokeStyle = 'lime';
-          ctx.lineWidth = 2;
-          if(x !== 0 ){ctx.stroke();}
-
-          lastPointRef.current = { x, y };
+        for (let x = 0; x < latestwave.length; x++) {
+          const y = baseline - latestwave[x] * gain;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-
-        xPointerRef.current = (xPointerRef.current + latestSamples.length) % width;
+        ctx.stroke();
       }
-
       animationId = requestAnimationFrame(draw);
     };
 
     animationId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animationId);
-  }, [bufferRef, hr, stepMs, drawPoints]);
+  }, [bufferRef, hr, size]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={800}
-      height={150}
-      className="border border-green-500 bg-black"
-    />
+    <div
+      ref={containerRef}
+      className="w-full h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px]" // ← 高さもレスポンシブ
+    >
+      <canvas
+        ref={canvasRef}
+        width={size.width}
+        height={size.height}
+        className="bg-black rounded-xl"
+      />
+    </div>
   );
 };
 

@@ -15,6 +15,7 @@ export interface AlarmLimits {
     decimals: number;
     sensitivity: number; 
     alarm: AlarmLimits;
+    color: string = 'text-white'; // デフォルト色（必要に応じて拡張）
   
     constructor({
         label,
@@ -24,6 +25,7 @@ export interface AlarmLimits {
         decimals = 0,
         sensitivity = 1,  // ← ★コレ！！
         alarm,
+        color,
     }: {
         label: string;
         unit: string;
@@ -32,6 +34,7 @@ export interface AlarmLimits {
         decimals?: number;
         sensitivity?: number; // ← ★コレ！！
         alarm: AlarmLimits;
+        color?: string;
     }) {
         this.label = label;
         this.unit = unit;
@@ -40,6 +43,7 @@ export interface AlarmLimits {
         this.decimals = decimals;
         this.sensitivity = sensitivity; // ← ★コレ！！
         this.alarm = alarm;
+        this.color = color || 'text-white'; // デフォルト色
     }
   
     clamp(value: number): number {
@@ -79,6 +83,7 @@ export interface AlarmLimits {
     max: 250,
     decimals: 0,
     sensitivity: 1, // 👈
+    color: 'text-green-400',
 
     alarm: {
       warnLow: 50,
@@ -90,15 +95,49 @@ export interface AlarmLimits {
   
   export const SPO2_PARAM = new VitalParameter({
     label: 'SpO2',
-    unit: '%',
+    unit: '',
     min: 0,
     max: 100,
     decimals: 0,
     sensitivity: 1, // 👈
+    color: 'text-cyan-400',
+
     alarm: {
       warnLow: 90,
-      warnHigh: 100,
-      critLow: 85,
-      critHigh: 101,
+      warnHigh: 110,
+      critLow: 80,
+      critHigh: 120,
     },
   });
+  export const NIBP_SYS_PARAM = new VitalParameter({
+    label: 'NIBP_SYS',
+    unit: '',
+    min: 30,
+    max: 250,
+    decimals: 0,
+    sensitivity: 1,
+    alarm: {
+      warnLow: 80,
+      warnHigh: 140,
+      critLow: 60,
+      critHigh: 180,
+    },
+    color: 'text-orange-600', // ← ★これ追加（型にないので要拡張）
+  });
+
+  export const NIBP_DIA_PARAM = new VitalParameter({
+    label: 'NIBP_DIA',
+    unit: '',
+    min: 20,
+    max: 250,
+    decimals: 0,
+    sensitivity: 1,
+    alarm: {
+      warnLow: 60,
+      warnHigh: 250,
+      critLow: 40,
+      critHigh: 250,
+    },
+    color: 'text-orange-600', // ← ★これ追加（型にないので要拡張）
+  });
+  

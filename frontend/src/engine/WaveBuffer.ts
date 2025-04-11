@@ -3,9 +3,9 @@ export class WaveBuffer {
   private pointer: number;
   private size: number;
 
-  constructor({ size = 2000 }: { size?: number }) {
+  constructor({ size = 800 }: { size?: number }) {
     this.size = size;
-    this.buffer = new Array(size).fill(0);
+    this.buffer = new Array(size).fill(null);
     this.pointer = 0;
   }
 
@@ -43,5 +43,13 @@ export class WaveBuffer {
   clear() {
     this.buffer.fill(0);
     this.pointer = 0;
+  }
+  getLatestNFrom(pointer: number, count: number): number[] {
+    const result: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const index = (pointer + i) % this.size;
+      result.push(this.buffer[index]);
+    }
+    return result;
   }
 }

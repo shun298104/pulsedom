@@ -19,7 +19,7 @@ export function generatePWave({
   // 標準的なP波持続（秒）
   const DEFAULT_DURATION = 0.07;
   // 標準的な左房成分のオフセット（秒）
-  const DEFAULT_LEFT_OFFSET = 0.04;
+  const DEFAULT_LEFT_OFFSET = 0.035;
   // ガウス関数の標準偏差（P波幅）
   const GAUSSIAN_STD_DEV = 0.015;
 
@@ -106,7 +106,7 @@ export function generateQRST({
   const waveform: number[] = [];
 
   // QT時間（QTc補正）※最低限の生理値に補正
-  let qt = hr > 50 ? 0.35 * Math.pow(60 / hr, 0.75) : 0.4;
+  let qt = hr > 50 ? 0.35 * Math.pow(60 / hr, 0.75) : 0.38;
   if (sinusStatus === "Af") qt *= 0.85;
 
   // QRS duration（QRS幅）

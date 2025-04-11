@@ -18,33 +18,25 @@ export class RhythmEngine {
     this.hr = hr;
 
     this.generateNewBeat();
-    this.nextBeatMs = this.timeMs + 60000 / this.hr;
+    this.nextBeatMs = 60000 / this.hr;
   }
 
   public setHr(newHr: number) {
     this.hr = newHr;
   }
 
-  public resetNextBeat() {
-    this.nextBeatMs = this.timeMs + 60000 / this.hr;
-  }
-
   private generateNewBeat() {
     const p = generatePWave({ hr: this.hr });
     const qrst = generateQRST({ hr: this.hr });
 
-    const PQ_DELAY_MS = 110;
+    const PQ_DELAY_MS = 100;
     const { samplingRate } = ECG_CONFIG;
     const pqSamples = Math.max(0, Math.round((PQ_DELAY_MS / 1000) * samplingRate) - p.length);
     const pqGap = new Array(pqSamples).fill(0);
 
-    // ❤️ 余韻を残すためのrest区間（100ms）
-    const restSamples = Math.round((100 / 1000) * samplingRate);
-    const rest = new Array(restSamples).fill(0);
-
-    this.currentWave = [...p, ...pqGap, ...qrst, ...rest];
+    this.currentWave = [...p, ...pqGap, ...qrst];
     this.waveIndex = 0;
-    console.log('✅ p-QRST+rest was generated!', this.currentWave);
+//    console.log('✅ p-QRST+rest was generated!', this.currentWave);
   }
 
   public step(deltaMs: number) {
@@ -70,10 +62,10 @@ export class RhythmEngine {
         }
       }
 
-      if (this.waveIndex >= this.currentWave.length && this.timeMs >= this.nextBeatMs) {
+      if (this.timeMs >= this.nextBeatMs) {
         this.generateNewBeat();
         this.nextBeatMs = this.timeMs + 60000 / this.hr;
-        console.log('💓 Next beat at:', this.timeMs, 'ms');
+        console.log(this.timeMs, '💓 Next beat at:', this.nextBeatMs, 'ms');
       }
     }
   }
