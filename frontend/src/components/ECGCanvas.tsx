@@ -32,7 +32,7 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx || size.width === 0 || size.height === 0) return;
 
-    const baseline = size.height / 2;
+    const baseline = size.height *2 / 3;
     const gain = size.height * 0.4;
     const stepMs = 20;
 
@@ -74,7 +74,7 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
         ref={canvasRef}
         width={size.width}
         height={size.height}
-        className="bg-black rounded-xl"
+        className="bg-black rounded-2xl"
       />
     </div>
   );

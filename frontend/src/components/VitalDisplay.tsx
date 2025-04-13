@@ -1,17 +1,22 @@
 // src/components/VitalDisplay.tsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { VitalParameter } from '../models/VitalParameter';
 
-interface VitalDisplayProps {
+type VitalDisplayProps = {
   param: VitalParameter;
   value: number;
   setValue: (v: number) => void;
-}
+};
+
 
 const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) => {
   const startYRef = useRef<number | null>(null);
   const tempValRef = useRef<number>(value);
   const [localVal, setLocalVal] = useState<number>(value);
+
+  useEffect(() => {
+    setLocalVal(value);
+  }, [value]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     startYRef.current = e.clientY;
@@ -29,12 +34,16 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) =
 
   const handlePointerUp = () => {
     startYRef.current = null;
-    setValue(tempValRef.current);
-    console.log("🔥 VitalDisplay変更要求:", tempValRef.current);
+    if (tempValRef.current !== value) {
+      setValue(tempValRef.current);
+      console.log("🔥 VitalDisplay変更要求:", tempValRef.current);
+    } else {
+      console.log("🟡 変更なし：handler呼び出し回避");
+    }
   };
 
   const getBgColor = (): string => {
-    if (param.isCritical(localVal)) return 'bg-red-500';
+    if (param.isCritical(localVal)) return 'bg-red-700';
     if (param.isWarning(localVal)) return 'bg-yellow-500';
     return 'bg-black';
   };
@@ -45,13 +54,13 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) =
 
   return (
     <div
-      className={`select-none cursor-ns-resize rounded-xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out ${getBgColor()}`}
+      className={`select-none cursor-ns-resize rounded-2xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out ${getBgColor()}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      <span className={`text-6xl font-bold ${getTextColor()}`}>
+      <span className={`text-6xl font-bold ont-mono text-right block ${getTextColor()}`}>
         {param.format(localVal)}
       </span>
       <span className="ml-2 text-gray-400 text-xl">{param.unit}</span>

@@ -2,7 +2,9 @@
 
 import { WaveBuffer } from './WaveBuffer';
 import { generatePWave, generateQRST } from './waveforms/generatePWave';
+import { generatePulseWave } from './waveforms/generatePulseWave'; // ←追加！
 import { ECG_CONFIG } from '../constants';
+import { playBeep } from '../utils/sound';
 
 export class RhythmEngine {
   private buffers: Record<string, WaveBuffer>;
@@ -37,6 +39,12 @@ export class RhythmEngine {
     this.currentWave = [...p, ...pqGap, ...qrst];
     this.waveIndex = 0;
 //    console.log('✅ p-QRST+rest was generated!', this.currentWave);
+
+    // 💓 SpO2波形もpush（ここ追加！）
+    const pulseWave = generatePulseWave(this.hr);
+    this.spo2Queue.push(pulseWave);
+//    console.log('✅ SpO2 wave generated!', pulseWave.length, 'samples', this.spo2Queue.length, 'waves');
+    playBeep()
   }
 
   public step(deltaMs: number) {
@@ -65,7 +73,7 @@ export class RhythmEngine {
       if (this.timeMs >= this.nextBeatMs) {
         this.generateNewBeat();
         this.nextBeatMs = this.timeMs + 60000 / this.hr;
-        console.log(this.timeMs, '💓 Next beat at:', this.nextBeatMs, 'ms');
+        //console.log(this.timeMs, '💓 Next beat at:', this.nextBeatMs, 'ms');
       }
     }
   }

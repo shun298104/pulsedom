@@ -7,9 +7,7 @@ interface SPO2CanvasProps {
 
 const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const pointerRef = useRef<number>(0);
-  const lastYRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   // ResizeObserverでサイズ監視
@@ -34,43 +32,40 @@ const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx || size.width === 0 || size.height === 0) return;
 
-    const baseline = size.height / 2;
+    const baseline = size.height *2 / 3;
     const gain = size.height * 0.4;
+    const stepMs = 20;
 
-    const draw = () => {
-      const wave = bufferRef.current?.getArray() ?? [];
-      const from = pointerRef.current;
-      const to = wave.length;
-      const newPoints = wave.slice(from, to);
+    let animationId: number;
+    let lastDrawTime = performance.now();
 
-      ctx.strokeStyle = '#00FFFF'; // cyan
-      ctx.lineWidth = 1;
-      ctx.beginPath();
+    const DELAY = 35; // ← 適宜調整（SamplingRate = 200なら150ms程度）
 
-      for (let i = 0; i < newPoints.length; i++) {
-        const x = (from + i) % size.width;
-        const y = baseline - newPoints[i] * gain;
+    const draw = (time: number) => {
+      const delta = time - lastDrawTime;
+      if (delta >= stepMs) {
+        lastDrawTime = time;
 
-        if (lastYRef.current === null || x === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+        const wave = bufferRef.current?.getArray() ?? [];
+        const latestwave = wave.slice(-size.width - DELAY, -DELAY);
+
+        ctx.clearRect(0, 0, size.width, size.height);
+        ctx.beginPath();
+        ctx.strokeStyle = '#00FFFF';
+        ctx.lineWidth = 1;
+        ctx.lineJoin = 'round';
+
+        for (let x = 0; x < latestwave.length; x++) {
+          const y = baseline - latestwave[x] * gain;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-
-        lastYRef.current = y;
+        ctx.stroke();
       }
-
-      ctx.stroke();
-      pointerRef.current = to;
-      requestAnimationFrame(draw);
+      animationId = requestAnimationFrame(draw);
     };
 
-    // 初期化
-    ctx.clearRect(0, 0, size.width, size.height);
-    pointerRef.current = 0;
-    lastYRef.current = null;
-
-    requestAnimationFrame(draw);
+    animationId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animationId);
   }, [bufferRef, hr, size]);
 
   return (
@@ -82,7 +77,7 @@ const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
         ref={canvasRef}
         width={size.width}
         height={size.height}
-        className="bg-black rounded-xl"
+        className="bg-black rounded-2xl"
       />
     </div>
   );

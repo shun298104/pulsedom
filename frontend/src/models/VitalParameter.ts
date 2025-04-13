@@ -79,7 +79,7 @@ export interface AlarmLimits {
   export const HR_PARAM = new VitalParameter({
     label: 'HR',
     unit: '',
-    min: 20,
+    min: 5,
     max: 250,
     decimals: 0,
     sensitivity: 1, // 👈
