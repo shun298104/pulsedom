@@ -1,35 +1,35 @@
-// src/engine/RhythmEngine.ts
-
 import { WaveBuffer } from './WaveBuffer';
-import { generatePWave, generateQRST } from './waveforms/generatePWave';
-import { generatePulseWave } from './waveforms/generatePulseWave'; // ←追加！
+import { generatePWave, generateQRST } from './waveforms/generateWaveforms';
+import { generatePulseWave } from './waveforms/generatePulseWave';
 import { ECG_CONFIG } from '../constants';
-import { playBeep } from '../utils/sound';
+import { SimOptions } from '../types/SimOptions';
 
 export class RhythmEngine {
   private buffers: Record<string, WaveBuffer>;
-  private hr: number;
+  private simOptions: SimOptions;
   private timeMs: number = 0;
   private nextBeatMs: number = 0;
   private currentWave: number[] = [];
   private waveIndex = 0;
   private spo2Queue: number[][] = [];
 
-  constructor({ buffers, hr = 80 }: { buffers: Record<string, WaveBuffer>; hr?: number }) {
+  constructor({ buffers, simOptions }: { buffers: Record<string, WaveBuffer>; simOptions: SimOptions }) {
     this.buffers = buffers;
-    this.hr = hr;
+    this.simOptions = simOptions;
 
     this.generateNewBeat();
-    this.nextBeatMs = 60000 / this.hr;
+    this.nextBeatMs = 60000 / this.simOptions.hr;
   }
 
   public setHr(newHr: number) {
-    this.hr = newHr;
+    this.simOptions.hr = newHr;
+    this.nextBeatMs = this.timeMs + 60000 / this.simOptions.hr;
   }
 
   private generateNewBeat() {
-    const p = generatePWave({ hr: this.hr });
-    const qrst = generateQRST({ hr: this.hr });
+    const { hr } = this.simOptions;
+    const p = generatePWave(this.simOptions);
+    const qrst = generateQRST(this.simOptions);
 
     const PQ_DELAY_MS = 100;
     const { samplingRate } = ECG_CONFIG;
@@ -38,13 +38,9 @@ export class RhythmEngine {
 
     this.currentWave = [...p, ...pqGap, ...qrst];
     this.waveIndex = 0;
-//    console.log('✅ p-QRST+rest was generated!', this.currentWave);
 
-    // 💓 SpO2波形もpush（ここ追加！）
-    const pulseWave = generatePulseWave(this.hr);
+    const pulseWave = generatePulseWave(this.simOptions);
     this.spo2Queue.push(pulseWave);
-//    console.log('✅ SpO2 wave generated!', pulseWave.length, 'samples', this.spo2Queue.length, 'waves');
-    playBeep()
   }
 
   public step(deltaMs: number) {
@@ -54,8 +50,9 @@ export class RhythmEngine {
     for (let i = 0; i < samplesPerStep; i++) {
       this.timeMs += 1000 / samplingRate;
 
-      const ecgVal =
-        this.waveIndex < this.currentWave.length ? this.currentWave[this.waveIndex++] ?? 0 : 0;
+      const ecgVal = this.waveIndex < this.currentWave.length
+        ? this.currentWave[this.waveIndex++] ?? 0
+        : 0;
       this.buffers['ecg']?.push(ecgVal);
 
       const spo2 = this.buffers['spo2'];
@@ -72,8 +69,7 @@ export class RhythmEngine {
 
       if (this.timeMs >= this.nextBeatMs) {
         this.generateNewBeat();
-        this.nextBeatMs = this.timeMs + 60000 / this.hr;
-        //console.log(this.timeMs, '💓 Next beat at:', this.nextBeatMs, 'ms');
+        this.nextBeatMs = this.timeMs + 60000 / this.simOptions.hr;
       }
     }
   }

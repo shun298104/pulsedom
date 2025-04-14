@@ -36,9 +36,6 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) =
     startYRef.current = null;
     if (tempValRef.current !== value) {
       setValue(tempValRef.current);
-      console.log("🔥 VitalDisplay変更要求:", tempValRef.current);
-    } else {
-      console.log("🟡 変更なし：handler呼び出し回避");
     }
   };
 

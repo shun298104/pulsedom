@@ -1,8 +1,10 @@
 // engine/waveforms/generatePulseWave.ts
 
 import { ECG_CONFIG } from '../../constants';
+import { SimOptions } from '../../types/SimOptions';
 
-export function generatePulseWave(hr: number): number[] {
+export function generatePulseWave(simOptions: SimOptions): number[] {
+  const { hr, waveform } = simOptions;
   const samplingRate = ECG_CONFIG.samplingRate;
   const beatMs = 60000 / hr;
   const totalSamples = Math.round((beatMs / 1000) * samplingRate);
@@ -18,7 +20,10 @@ export function generatePulseWave(hr: number): number[] {
   const a = 1 / (peakPoint ** 2);
   const systolicEndValue = -a * (systolicEnd - peakPoint) ** 2 + 1;
 
-  const waveform: number[] = [];
+  const mgnfy = waveform?.mgnfy ?? 1;
+  const baseline = waveform?.baseline ?? 0;
+
+  const waveformArray: number[] = [];
 
   for (let i = 0; i < totalSamples; i++) {
     let value = 0;
@@ -30,8 +35,8 @@ export function generatePulseWave(hr: number): number[] {
       value = systolicEndValue * Math.exp(-x / tau);
     }
 
-    waveform.push(Math.max(0, value));
+    waveformArray.push(Math.max(0, value * mgnfy + baseline));
   }
 
-  return waveform;
+  return waveformArray;
 }

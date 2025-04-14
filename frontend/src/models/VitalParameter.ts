@@ -83,7 +83,7 @@ export interface AlarmLimits {
     max: 250,
     decimals: 0,
     sensitivity: 1, // 👈
-    color: 'text-green-400',
+    color: 'text-green-500',
 
     alarm: {
       warnLow: 50,
