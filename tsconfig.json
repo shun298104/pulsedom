@@ -5,6 +5,12 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
+    "allowJs": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,  // ★ これが重要
+    "jsx": "react-jsx",
     "target": "es2022",   // ← これ追加・修正
     "lib": ["dom", "es2022"],  // ← これも
     "baseUrl": ".",

@@ -1,16 +1,16 @@
-//src/rules/graphControlRules.ts
+//src/rules/graphControlRuleList.ts
 import type { GraphControlRule } from './GraphControlTypes';
 
 export const graphControlRules: GraphControlRule[] = [
   {
-    id: 'AtrialNormal',
-    label: 'normal',
+    id: 'NSR',
+    label: 'normal sinus rhythm',
     group: 'AtrialStatus',
-    exclusiveGroup: 'AtrialStatus',
+    //    exclusiveGroup: 'AtrialStatus',
     description: 'Default atrial conduction. Enables SA node and IA conduction.',
     effects: {
       node: {
-        SA: { autofire: true }
+        SA: { autofire: true },
       },
       path: {
         'A->IA': { block: false, },
@@ -30,13 +30,12 @@ export const graphControlRules: GraphControlRule[] = [
     id: 'Af',
     label: 'Atrial Fibrillation',
     group: 'AtrialStatus',
-    exclusiveGroup: 'AtrialStatus',
+    //    exclusiveGroup: 'AtrialStatus',
     description: 'Blocks A→IA and applies probabilistic conduction from IA to AN. SA node suppressed.',
     effects: {
       node: {
-        SA: {
-          autofire: false,
-        },
+        SA: { autofire: false, },
+        LA: { forceFiring: true },
       },
       path: {
         'A->IA': { block: true, },
@@ -53,8 +52,9 @@ export const graphControlRules: GraphControlRule[] = [
   {
     id: 'AFL',
     label: 'Atrial Flutter',
-    group: 'AtrialStatus',
-    exclusiveGroup: 'AtrialStatus',
+    group: 'demo',
+//    group: 'AtrialStatus',
+    //    exclusiveGroup: 'AtrialStatus',
     description: 'Enables the IA↔CTI2 reentrant loop and LA→IA conduction.',
     effects: {
       node: {
@@ -80,5 +80,52 @@ export const graphControlRules: GraphControlRule[] = [
         SA: { autofire: false, },
       },
     },
+  },
+  {
+    id: 'AVNRT',
+    label: 'AVNRT',
+    group: 'demo',
+//    group: 'JunctionStatus',
+    //    exclusiveGroup: 'AVstatus',
+    description: 'AV node Reentry Tachycardia',
+    effects: {
+      node: {
+        AN: { forceFiring: true },
+      },
+      path: {
+        'IA->AN_fast': {refractoryMs: 100, },
+        'IA->AN_slow': {refractoryMs: 40},
+        'IA->AN_fast_retro': {refractoryMs:40},
+        'IA->AN_slow_retro': {refractoryMs:100},
+      }
+    }
+  },
+  {
+    id: 'RESET',
+    label: 'rest all nodes and paths',
+    group: 'demo',
+//    group: 'JunctionStatus',
+    //    exclusiveGroup: 'AVstatus',
+    description: 'AV node Reentry Tachycardia',
+    effects: {
+      node: {
+        SA: { autofire: true },
+        CTI2: { autofire: true }
+      },
+      path: {
+        'IA->AN_fast': { refractoryMs: 250, probability: 1.0 },
+        'IA->AN_slow': { refractoryMs: 250, probability: 1.0 },
+        'IA->AN_fast_retro': { refractoryMs: 300 },
+        'IA->AN_slow_retro': { refractoryMs: 300 },
+        'A->IA': { block: false, },
+        'IA->A': { block: false, },
+        'LA->PV1': { block: true, },
+        'PV1->PV2': { block: true, },
+        'PV2->LA': { block: true, },
+        'LA->IA': { block: true, },
+        'IA->CTI2': { block: true, },
+        'CTI2->IA': { block: true, },
+      }
+    }
   },
 ];

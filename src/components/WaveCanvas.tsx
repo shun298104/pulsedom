@@ -65,8 +65,8 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
       // 1mVスケール
       const scaleX = 10;
       const scaleHeight = gain * 1;  // 1mVスケール
-      const scaleTop = baseline - scaleHeight;
-      const scaleBottom = baseline;
+      const scaleTop = size.height / 2 - scaleHeight/2;
+      const scaleBottom = size.height / 2 + scaleHeight/2;
 
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 1;
@@ -80,7 +80,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       // スケールラベル
       ctx.fillStyle = 'white';
-      ctx.font = '10px Arial';
+      ctx.font = '12px Arial';
       ctx.fillText('1 mV', scaleX + 15, scaleTop + 5);
 
       requestAnimationFrame(draw);
@@ -97,7 +97,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
         height={size.height}
         className="bg-black rounded-2xl"
       />
-      <div className="absolute top-1 left-2 text-xs text-white opacity-80">{labelText}</div>
+      <div className="absolute top-1 left-2 text-sm text-white opacity-80">{labelText}</div>
     </div>
   );
 };

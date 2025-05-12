@@ -14,8 +14,8 @@ function App() {
     new SimOptions(createDefaultSimOptions())
   );
   const simOptionsRef = useRef(simOptions);
+  const graphRef = useRef<GraphEngine | null>(null);
 
-  const graphRef = useRef(GraphEngine.createDefaultEngine());
   const [hr, setHr] = useState(-1);
   const [spo2, setSpo2] = useState(-1);
   const [sysBp, setSysBp] = useState(120);
@@ -52,11 +52,16 @@ function App() {
     setDiaBp(simOptions.diaBp);
   }, [simOptions.diaBp]);
 
+  // 初回レンダー時にインスタンスを生成
+  useEffect(() => {
+    if (!graphRef.current) { graphRef.current = GraphEngine.createDefaultEngine(); }
+  }, []);
+
   useEffect(() => {
 
     const rhythmEngine = new RhythmEngine({
       simOptions: simOptionsRef.current,
-      graph: graphRef.current,
+      graph: graphRef.current as GraphEngine,
       audioCtx,
       isBeepOnRef,
       bufferRef,
@@ -66,7 +71,7 @@ function App() {
     rhythmEngine.setOnHrUpdate(setHr);
     rhythmEngine.setOnSpo2Update(setSpo2);
 
-    graphRef.current.setDebugLevel(2, 5_000);
+    if (graphRef.current) graphRef.current.setDebugLevel(0, 5_000);
 
     let animationId: number;
     const loop = (now: number) => {
@@ -80,11 +85,9 @@ function App() {
 
   const handleSimOptionsChange = (next: SimOptions) => {
     //    console.log('[handler sim =]', next)
-    setSimOptions(next);                // Reactに渡す（非同期で再レンダー）UI描画用
-    simOptionsRef.current = next;       /// 即時参照用として保持（同期で使用OK）
-    graphRef.current.updateFromSim(next);
-
-    engine?.updateSimOptions(next);
+    setSimOptions(next);                   // Reactに渡す（非同期で再レンダー）UI描画用
+    simOptionsRef.current = next;          /// 即時参照用として保持（同期で使用OK）
+    graphRef.current?.updateFromSim(next); // グラフエンジンに渡す（即時反映）
   };
 
   const handleBeepToggle = () => {

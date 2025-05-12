@@ -26,11 +26,11 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, display, onAl
     }
     return param.color;
   };
-
+  
   const handleSave = () => {
-    if (onAlarmChange) {
-      onAlarmChange(param.key, { warnHigh: tempHigh, warnLow: tempLow });
-    }
+    // 直接VitalParameterインスタンスのアラームを更新
+    param.alarm.warnHigh = tempHigh;
+    param.alarm.warnLow = tempLow;
     setIsModalOpen(false);
   };
 

@@ -6,7 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "./ui/accordion";
-import { AtrialStatusButtons } from "./ui/AtrialStatusButtons";
+import { StatusButtons } from "./ui/StatusButtons";
 
 interface AccordionUIMockProps {
   simOptions: SimOptions;
@@ -115,7 +115,8 @@ export function AccordionUIMock({
               onChange={(v) => updateRate("sinus", v)}
             />
 
-            <AtrialStatusButtons
+            <StatusButtons
+              group = "AtrialStatus"
               current={simOptions.sinus_status ?? "AtrialNormal"}
               setSinusStatus={(s) => {
                 const next = new SimOptions(simOptions);
@@ -139,7 +140,16 @@ export function AccordionUIMock({
               unit="bpm"
               onChange={(v) => updateRate("junction", v)}
             />
-          </AccordionContent>
+            <StatusButtons
+              group = "JunctionStatus"
+              current={simOptions.sinus_status ?? "AtrialNormal"}
+              setSinusStatus={(s) => {
+                const next = new SimOptions(simOptions);
+                next.sinus_status = s;
+                onSimOptionsChange(next);
+              }}
+            />          
+            </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="ventricle">
@@ -155,6 +165,20 @@ export function AccordionUIMock({
               unit="bpm"
               onChange={(v) => updateRate("ventricle", v)}
             />
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="devmode">
+          <AccordionTrigger>in Development</AccordionTrigger>
+          <AccordionContent className="space-y-1">
+        <StatusButtons
+              group = "demo"
+              current={simOptions.sinus_status ?? "AtrialNormal"}
+              setSinusStatus={(s) => {
+                const next = new SimOptions(simOptions);
+                next.sinus_status = s;
+                onSimOptionsChange(next);
+              }}
+            />          
           </AccordionContent>
         </AccordionItem>
       </Accordion>

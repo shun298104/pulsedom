@@ -1,7 +1,9 @@
+// src/engine/graphs/Path.ts
 import { Node } from '../GraphEngine';
 import { vec3, type vec3 as Vec3 } from 'gl-matrix';
-import { LeadName, leadVectors } from '../../constants/leadVectors';
+import { LeadName } from '../../constants/leadVectors';
 import type { NodeId } from '../../types/NodeTypes';
+import { calculateDotFactors } from '../../utils/calculateDotFactors';
 
 export type PathProps = {
   id: string;
@@ -11,49 +13,124 @@ export type PathProps = {
   delayMs: number;
   apdMs: number;
   refractoryMs: number;
+  polarity?: number;
   conductionDirection?: 'forward' | 'retro';
   reversePathId?: string | null;
   blocked?: boolean;
-  conductionProbability?: number;  // 0.0–1.0 省略時=1.0
-  delayJitterMs?: number;          // ±jitter (ms)
+  conductionProbability?: number;
+  delayJitterMs?: number;
 };
 
+const reversePaths = new WeakMap<Path, Path>();
+
 export class Path {
+  private reversePath?: Path;
+  private computeBaseWave!: (t: number) => number;
+
+  readonly reversePathId?: string | null;
   readonly id: string;
   readonly from: NodeId;
   readonly to: NodeId;
-  readonly conductionDirection: 'forward' | 'retro';
-  readonly reversePathId: string | null;
-
-  blocked: boolean;
-  lastConductedAt = -1000;
-  vector: Vec3;
-
   amplitude: number;
   delayMs: number;
+  refractoryMs: number;
+  blocked: boolean;
+  polarity?: number;
+
+  lastConductedAt = -1000;
   delayJitterMs?: number;
   apdMs: number;
-  refractoryMs: number;
   conductionProbability?: number;
 
-  
-  constructor(props: PathProps, nodeMap: Record<NodeId, Node>) {
+  vector: Vec3;
+  dotFactors: Record<LeadName, number>; // 修正
+
+  constructor(props: PathProps, nodeMap: Record<NodeId, Node>, allPaths: Path[]) {
     this.id = props.id;
     this.from = props.from;
     this.to = props.to;
-    this.delayMs = props.delayMs;
-    this.delayJitterMs = props.delayJitterMs;
-    this.refractoryMs = props.refractoryMs;
     this.amplitude = props.amplitude;
-    this.apdMs = props.apdMs;
-    this.conductionDirection = props.conductionDirection ?? 'forward';
-    this.reversePathId = props.reversePathId ?? null;
+    this.delayMs = props.delayMs;
+    this.refractoryMs = props.refractoryMs;
     this.blocked = props.blocked ?? false;
+    this.reversePathId = props.reversePathId ?? null;
+    this.polarity = props.polarity ?? 0.1;
+    this.delayJitterMs = props.delayJitterMs;
+    this.apdMs = props.apdMs;
     this.conductionProbability = props.conductionProbability ?? undefined;
 
+    // ノード間のベクトル計算
     const fromNode = nodeMap[this.from];
     const toNode = nodeMap[this.to];
-    this.vector = vec3.fromValues(toNode.x - fromNode.x, toNode.y - fromNode.y, toNode.z - fromNode.z);
+    this.vector = vec3.fromValues(
+      toNode.x - fromNode.x,
+      toNode.y - fromNode.y,
+      toNode.z - fromNode.z
+    );
+
+    // DotFactorの計算とキャッシュ
+    this.dotFactors = calculateDotFactors(this, fromNode, toNode);
+    this.updateParams(this.delayMs, this.apdMs, this.polarity);
+  }
+
+  /** パラメータ更新時にベース波形を再定義 */
+  public updateParams(delayMs: number, apdMs: number, polarity: number) {
+    this.delayMs = delayMs;
+    this.apdMs = apdMs;
+    this.polarity = polarity;
+
+    const μ1 = this.delayMs / 1000;
+    const μ2 = (this.delayMs + this.apdMs) / 1000;
+    const sigma1 = 0.02;
+    const sigmaL = 0.06;
+    const sigmaR = 0.04;
+    const gain = 0.4;
+    const amplitude = this.amplitude;
+
+    // クロージャ再定義（getVoltageと同じアルゴリズム）
+    this.computeBaseWave = (t: number) => {
+      const nowS = (t - this.lastConductedAt) / 1000;
+      const G1 = Math.exp(-Math.pow((nowS - μ1) / sigma1, 2));
+      const sigma2 = nowS <= μ2 ? sigmaL : sigmaR;
+      const G2 = -Math.exp(-Math.pow((nowS - μ2) / sigma2, 2)) * (this.polarity ?? 0.1);
+      const baseWave = G1 + G2;
+
+      return baseWave * gain * amplitude;
+    };
+  }
+
+  /** ベース波形計算 */
+  public getBaseWave(t: number): number {
+    if (!this.computeBaseWave) {
+      console.error(`computeBaseWave is not defined for Path ${this.id}`);
+      return 0;
+    }
+    return this.computeBaseWave(t);
+  }
+
+  getReversePath(): Path | undefined {
+    return reversePaths.get(this);
+  }
+
+  setReversePath(reversePath: Path) {
+    this.reversePath = reversePath;
+  }
+
+  canConduct(now: number): boolean {
+    if (this.blocked) return false;
+    if (now - this.lastConductedAt < this.refractoryMs) return false;
+
+    if (this.conductionProbability !== undefined) {
+      const randomValue = Math.random();
+      if (randomValue > this.conductionProbability) return false;
+    }
+
+    if (this.reversePath) {
+      const sinceReverse = now - this.reversePath.lastConductedAt;
+      const threshold = this.reversePath.refractoryMs * (this.reversePath.lastConductedAt > this.lastConductedAt ? 1.5 : 1.0);
+      if (sinceReverse < threshold) return false;
+    }
+    return true;
   }
 
   /** conduction delay with optional jitter */
@@ -63,55 +140,23 @@ export class Path {
     return Math.max(0, this.delayMs + jitter);
   }
 
-  /** return true if conduction allowed at `now` */
-  canConduct(now: number, allPaths: Path[]): boolean {
-    if (this.blocked) return false;
-
-    // refractory check for self
-    if (now - this.lastConductedAt < this.refractoryMs) return false;
-
-    // reverse path refractory interaction
-    if (this.reversePathId) {
-      const reverse = allPaths.find(p => p.id === this.reversePathId);
-      if (reverse) {
-        const sinceReverse = now - reverse.lastConductedAt;
-        const threshold = reverse.refractoryMs * (reverse.lastConductedAt > this.lastConductedAt ? 1.5 : 1.0);
-        if (sinceReverse < threshold) return false;
-      }
-    }
-
-    // probabilistic conduction
-    if (this.conductionProbability !== undefined && Math.random() > this.conductionProbability) {
-      console.log(`💰 Path ${this.id} conduction blocked by probability (${this.conductionProbability})`);
-      return false;
-    }
-
-    return true;
+  /** DotFactorの取得 */
+  getDotFactor(leadName: LeadName): number {
+    return this.dotFactors[leadName] ?? 0;
   }
 
-  getVoltage(now: number, lead: LeadName): number {
-    const t = (now - this.lastConductedAt) / 1000;
-    const μ1 = this.delayMs / 1000;                    // 脱分極中心
-    const μ2 = (this.delayMs + this.apdMs) / 1000;     // 再分極中心（T波中心）
-  
-    const σ1 = 0.02;  // 脱分極のシャープさ（QRS）
-    const σL = 0.04;  // T波左側の幅（ゆるやか）
-    const σR = 0.025; // T波右側の幅（鋭く）
-  
-    const G1 = Math.exp(-Math.pow((t - μ1) / σ1, 2));
-  
-    // 左右非対称ガウス：μ2を中心に左右でσを変える
-    const σ2 = t <= μ2 ? σL : σR;
-    const G2 = -0.4 * Math.exp(-Math.pow((t - μ2) / σ2, 2));
-  
-    const baseWave = G1 - G2;
-  
-    const unitVector = vec3.normalize(vec3.create(), this.vector);
-    const polarity = vec3.dot(unitVector, leadVectors[lead]);
-  
-    return this.amplitude * baseWave * polarity;
-  }  
-  
+  /** 電位計算（全リード一括） */
+  public getVoltages(now: number): Record<LeadName, number> {
+    const baseWave = this.getBaseWave(now);
+    //    console.log('Base Wave:', this.id, baseWave); // デバッグ用
+    const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
+
+    for (const lead in this.dotFactors) {
+      voltages[lead as LeadName] = baseWave * this.dotFactors[lead as LeadName];
+    }
+    return voltages;
+  }
+
   isVentricular(): boolean {
     return this.to === 'V';
   }
@@ -119,10 +164,7 @@ export class Path {
   getId(): string {
     return this.id;
   }
-  
 }
-function asymmetricGaussian(t: number, mu: number, sigmaL: number, sigmaR: number): number {
-  const sigma = t <= mu ? sigmaL : sigmaR;
-  return Math.exp(-Math.pow(t - mu, 2) / (2 * Math.pow(sigma, 2)));
-}
+
 export type PathId = string;
+export { reversePaths };

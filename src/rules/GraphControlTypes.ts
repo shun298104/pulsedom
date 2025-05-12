@@ -8,11 +8,12 @@ import type { PathId } from '../engine/graphs/Path';
 // 例: "不整脈", "刺激伝導系", "心筋虚血", "ペーシング", "特殊" など
 export type GraphControlGroup =
   | 'AtrialStatus'
+  | 'JunctionStatus'
   | 'VentricularArrhythmia'
   | 'SSS'
   | 'Ischemia'
   | 'Pacing'
-  | 'Special';
+  | 'demo';
 
 // ==========================
 // ノードに対する効果定義
@@ -21,6 +22,8 @@ export type NodeEffect = Partial<{
   autofire: boolean;
   rate: number;
   refractory: number;
+  forceFiring: boolean;
+
   // ectopicOptions の設定は将来的にここに統合できる
   'ectopic.enabled': boolean;
   'ectopic.probability': number;
@@ -58,7 +61,7 @@ export type GraphControlRule = {
   /** UI上の分類グループ（例: 'atrial arrhythmia'） */
   group?: GraphControlGroup
 
-  exclusiveGroup?: GraphControlGroup; // 同じグループ内で排他制御する場合に指定
+//  exclusiveGroup?: GraphControlGroup; // 同じグループ内で排他制御する場合に指定
 
   /** 適用される効果一覧 */
   effects: {

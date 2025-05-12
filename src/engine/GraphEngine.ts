@@ -1,20 +1,21 @@
 // src/engine/GraphEngine.ts
-
 import { SimOptions } from '../types/SimOptions';
 import { Path } from './graphs/Path';
 import { defaultNodes } from './graphs/nodes';
 import { createDefaultPaths } from './graphs/paths';
-import { LeadName } from '../constants/leadVectors';
 import { Node, NodeId } from '../types/NodeTypes';
-import { updateGraphEngineFromSim } from './UpdateGraph';
+import { updateGraphEngineFromSim } from './GraphControl';
 
 export class GraphEngine {
   private debugLevel: 0 | 1 | 2 = 0;
   private debugResetTimer: number | null = null;
-
   private nodes: Record<NodeId, Node>;
   private paths: Path[];
+  private toNodesCache: Record<NodeId, Path[]> = {} as Record<NodeId, Path[]>;
+
+  private reversePathIndex = new Map<Path, Path>();
   private scheduledFires: { target: NodeId; via: string; fireAt: number }[] = [];
+
 
   constructor(nodes: Node[], pathsRaw: Path[], debugLevel: 0 | 1 | 2 = 0) {
     this.debugLevel = debugLevel;
@@ -23,7 +24,23 @@ export class GraphEngine {
       return acc;
     }, {} as Record<NodeId, Node>);
 
-    this.paths = pathsRaw.map(p => new Path(p, this.nodes));
+    this.paths = pathsRaw.map(p => new Path(p, this.nodes, pathsRaw)); 
+    this.cacheOutgoingPaths();
+    this.linkReversePaths(); // リバースパスの設定
+  }
+
+  private cacheOutgoingPaths() {
+    for (const path of this.paths) {
+      const { from } = path;
+      if (!this.toNodesCache[from]) {
+        this.toNodesCache[from] = [];
+      }
+      this.toNodesCache[from].push(path);
+    }
+  }
+
+  public toNodes(from: NodeId): Path[] {
+    return this.toNodesCache[from] || [];
   }
 
   private log(level: number, message: string, now: number) {
@@ -49,7 +66,7 @@ export class GraphEngine {
   /* Update the graph engine with new simulation options */
   updateFromSim(simOptions: SimOptions) {
     // 1. rate を直接反映
-    const nodeIds: NodeId[] = ['SA', 'NH', 'V'];
+    const nodeIds: NodeId[] = ['SA', 'NH', 'RV'];
     nodeIds.forEach((id) => {
       this.setNodeRate(id, simOptions.getRate(id));
     });
@@ -63,15 +80,11 @@ export class GraphEngine {
     }
   }
   getLastFireTime(nodeId: NodeId): number {
-    return this.nodes[nodeId]?.lastFiredAt ?? -1;
+    return this.nodes[nodeId]?.STATE.lastFiredAt ?? -1;
   }
 
-  getAllPaths(): Path[] {
+  getPaths(): Path[] {
     return this.paths;
-  }
-
-  public sumPathVoltages(nowMs: number, lead: LeadName = 'II'): number {
-    return this.paths.reduce((sum, path) => sum + path.getVoltage(nowMs, lead), 0);
   }
 
   public getLastConductedAt(pathId: string): number {
@@ -80,19 +93,25 @@ export class GraphEngine {
   }
 
   private updateAdaptiveRefractory(node: Node, now: number) {
-    const interval = now - node.lastFiredAt;
+    const interval = now - node.STATE.lastFiredAt;
     const scale = Math.min(1.0, interval / 1000);
     node.adaptiveRefractoryMs = node.primaryRefractoryMs * scale;
   }
 
   tick(now: number): string[] {
-    const firingEvent: string[] = [];
+    const firingEvent: string[] = []; //tick()の戻り値をREに返す
 
-    for (const node of Object.values(this.nodes)) {
-      if (!node.shouldAutoFire(now, this.estimateHR(now))) continue;
+    const autofiringNodes = Object.values(this.nodes)
+      .filter(p => p.CONFIG?.autoFire === true || p?.CONFIG.forceFiring === true)
+      .map(p => p.id);
 
+    for (const nodeId of autofiringNodes) {
+      const node = this.nodes[nodeId];
+      if (!node) continue; // ノードが存在しない場合のガード
+
+      if (!node.shouldAutoFire(now)) continue;
       this.updateAdaptiveRefractory(node, now);
-      node.lastFiredAt = now;
+      node.STATE.lastFiredAt = now;
       firingEvent.push(node.id);
       this.log(1, `⚡ ${node.id} Auto firing (${node.bpm}bpm)`, now);
       this.scheduleConduction(node.id, now);
@@ -108,28 +127,28 @@ export class GraphEngine {
       const target = this.nodes[sched.target];
       const viaPath = this.paths.find(p => p.id === sched.via);
 
-      if (now - target.lastFiredAt >= target.getRefractoryMs(now)) {
+      if (now - target.STATE.lastFiredAt >= target.getRefractoryMs(now)) {
         this.updateAdaptiveRefractory(target, now);
-        target.lastFiredAt = now;
+        target.STATE.lastFiredAt = now;
         firingEvent.push(target.id);
         if (viaPath) firingEvent.push(viaPath.id);
         this.log(1, `🔥 ${target.id} Scheduled firing via ${sched.via}`, now);
         this.scheduleConduction(target.id, now);
       } else {
-        this.log(2, `⛔ node ${target.id} is refractory (${Math.round(now - target.lastFiredAt)} < ${target.getRefractoryMs(now)} ms)`, now);
+        this.log(2, `⛔ node ${target.id} is refractory (${Math.round(now - target.STATE.lastFiredAt)} < ${target.getRefractoryMs(now)} ms)`, now);
       }
     }
-
     this.scheduledFires = remaining;
     return firingEvent;
   }
 
   private scheduleConduction(from: NodeId, now: number) {
-    const outgoing = this.paths.filter(p => p.from === from);
+    const outgoing = this.toNodesCache[from] || [];
 
     for (const path of outgoing) {
-      if (!path.canConduct(now, this.paths)) {
-        this.log(2, `🚫 ${path.id} blocked or refractory`, now);
+      if (path.blocked) { continue; }
+      if (!path.canConduct(now)) {
+        this.log(2, `🚫 ${path.id} is refractory`, now);
         continue;
       }
 
@@ -149,11 +168,22 @@ export class GraphEngine {
     }
   }
 
-  private estimateHR(now: number): number {
-    const sa = this.nodes['SA'];
-    const last = sa.lastFiredAt;
-    const interval = now - last;
-    return interval > 0 ? 60000 / interval : 80;
+  private linkReversePaths() {
+    this.paths.forEach(path => {
+      if (path.reversePathId) {
+        const reverse = this.paths.find(p => p.id === path.reversePathId);
+        if (reverse) {
+          path.setReversePath(reverse);
+          reverse.setReversePath(path);
+          this.reversePathIndex.set(path, reverse);
+          this.reversePathIndex.set(reverse, path);
+        }
+      }
+    });
+  }
+
+  getReversePath(path: Path): Path | undefined {
+    return this.reversePathIndex.get(path);
   }
 
   static createDefaultEngine(debugLevel: 0 | 1 | 2 = 0): GraphEngine {

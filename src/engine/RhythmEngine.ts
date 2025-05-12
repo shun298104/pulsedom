@@ -5,15 +5,17 @@ import { GraphEngine } from './GraphEngine';
 import { playBeep } from '../audio/playBeep';
 import { ECG_CONFIG } from '../constants/constants';
 import { WaveBufferMap } from './WaveBuffer';
-import { leadVectors, LeadName } from '../constants/leadVectors';
+import { LeadName } from '../constants/leadVectors';
+import { Path } from './graphs/Path';
 
 export class RhythmEngine {
   private simOptions: SimOptions;
   private graph: GraphEngine;
-  audioCtx?: AudioContext | null | undefined;
+  private audioCtx?: AudioContext | null;
   private isBeepOnRef?: React.MutableRefObject<boolean>;
   private bufferRef: React.MutableRefObject<WaveBufferMap>;
   private lastStepTime = 0;
+  private paths: Path[];
 
   constructor({
     simOptions,
@@ -33,20 +35,48 @@ export class RhythmEngine {
     this.audioCtx = audioCtx ?? null;
     this.isBeepOnRef = isBeepOnRef;
     this.bufferRef = bufferRef;
+
+    // GraphEngineからパスを取得
+    this.paths = graph.getPaths();
   }
 
+  /** バッファの更新 */
+public updateBuffer(nowMs: number) {
+  const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
+
+  // 各Pathからベース波形を取得し、リードごとに集計
+  for (const path of this.paths) {
+      const baseWave = path.getBaseWave(nowMs);  // ベース波形を取得
+      for (const lead in path.dotFactors) {
+          const dotFactor = path.dotFactors[lead as LeadName];
+          const voltage = baseWave * dotFactor;
+          voltages[lead as LeadName] = (voltages[lead as LeadName] || 0) + voltage;
+      }
+  }
+
+  // バッファにプッシュ
+  for (const lead in voltages) {
+      this.pushBuffer(lead as LeadName, voltages[lead as LeadName]);
+  }
+}
+
+
+  /** シミュレーションオプションの更新 */
   public updateSimOptions(next: SimOptions) {
     this.simOptions = next;
   }
 
+  /** HRの設定 */
   public setHr(newHr: number) {
     this.simOptions.hr = newHr;
     this.onHrUpdate?.(newHr);
   }
 
+  /** グラフの設定 */
   public setGraph(graph: GraphEngine) {
     console.log('🔁 [RhythmEngine] Graph updated!');
     this.graph = graph;
+    this.paths = graph.getPaths(); // パスも更新
   }
 
   private vFireTimes: number[] = [];
@@ -79,23 +109,25 @@ export class RhythmEngine {
     const prev = times[times.length - 2];
     return last - prev;
   }
+
   private pulseWaveFn: (t: number) => number = () => 0;
 
   public step(currentTime: number) {
     while (currentTime - this.lastStepTime >= ECG_CONFIG.stepMs / 1000) {
       this.lastStepTime += ECG_CONFIG.stepMs / 1000;
-      const t = this.lastStepTime;// tは秒単位!!!
-      const firing = this.graph.tick(t * 1000);
+      const t = this.lastStepTime; // tは秒単位!!!
 
-      Object.keys(leadVectors).forEach(
-        (lead) => this.pushBuffer(lead, this.graph.sumPathVoltages(t * 1000, lead as LeadName))
-      );
-      
+      // バッファ更新
+      this.updateBuffer(t * 1000);
+
+      // Pulse波形計算
       const pulse = this.pulseWaveFn(t - this.graph.getLastConductedAt('His->V') / 1000);
       this.pushBuffer('pulse', pulse);
       this.pushBuffer('spo2', 0.3);
 
-      if (firing.includes('LBB->LV_main')) {
+      // Ventricle firing check (戻した部分)
+      const firing = this.graph.tick(t * 1000);
+      if (firing.includes('NH->His')) {
         const now = t * 1000;
         this.vFireTimes.push(now);
         const threshold = now - 5000;
@@ -116,6 +148,7 @@ export class RhythmEngine {
       }
     }
   }
+
 
   private pushBuffer(key: string, val: number) {
     this.bufferRef.current[key]?.push(val);
