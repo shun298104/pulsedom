@@ -1,5 +1,5 @@
 // src/models/VitalParameter.ts
-import { RawSimOptions } from "../types/SimOptions";  
+import { RawSimOptions } from "./SimOptions";
 
 export interface AlarmLimits {
   warnLow: number;
@@ -14,10 +14,10 @@ export class VitalParameter {
   min: number;
   max: number;
   decimals: number;
-  sensitivity: number;
   alarm: AlarmLimits;
-  color: string = 'text-white'; // デフォルト色（必要に応じて拡張）
-  key: keyof RawSimOptions; // ← ★これが重要！
+  color: string = 'text-white';
+  key: keyof RawSimOptions;
+
 
   constructor({
     label,
@@ -25,7 +25,6 @@ export class VitalParameter {
     min,
     max,
     decimals = 0,
-    sensitivity = 1,
     alarm,
     color,
     key,
@@ -35,8 +34,7 @@ export class VitalParameter {
     min: number;
     max: number;
     decimals?: number;
-    sensitivity?: number;
-    alarm: AlarmLimits;
+    alarm?: AlarmLimits;
     color?: string;
     key: keyof RawSimOptions;
   }) {
@@ -45,8 +43,7 @@ export class VitalParameter {
     this.min = min;
     this.max = max;
     this.decimals = decimals;
-    this.sensitivity = sensitivity; // ← ★コレ！！
-    this.alarm = alarm;
+    this.alarm = alarm ?? { warnLow: 0, warnHigh: 100, critLow: 0, critHigh: 100, };
     this.color = color || 'text-white'; // デフォルト色
     this.key = key;
   }
@@ -79,10 +76,11 @@ export class VitalParameter {
   }
 
   getColor(): string {
-    return 'text-white'; // デフォルト色（必要に応じて拡張）
+    return this.color || 'text-white';
   }
 
 }
+
 
 export const HR_PARAM = new VitalParameter({
   key: 'hr',
@@ -91,7 +89,6 @@ export const HR_PARAM = new VitalParameter({
   min: 5,
   max: 250,
   decimals: 0,
-  sensitivity: 2, // 👈
   color: 'text-green-500',
 
   alarm: {
@@ -109,7 +106,6 @@ export const SPO2_PARAM = new VitalParameter({
   min: 0,
   max: 100,
   decimals: 0,
-  sensitivity: 10, // 👈
   color: 'text-cyan-400',
 
   alarm: {
@@ -119,6 +115,7 @@ export const SPO2_PARAM = new VitalParameter({
     critHigh: 100,
   },
 });
+
 export const NIBP_SYS_PARAM = new VitalParameter({
   key: 'nibp_sys',
   label: 'SysBP',
@@ -126,14 +123,13 @@ export const NIBP_SYS_PARAM = new VitalParameter({
   min: 30,
   max: 250,
   decimals: 0,
-  sensitivity: 5,
   alarm: {
     warnLow: 80,
     warnHigh: 140,
     critLow: 60,
     critHigh: 180,
   },
-  color: 'text-orange-600', // ← ★これ追加（型にないので要拡張）
+  color: 'text-orange-600',
 });
 
 export const NIBP_DIA_PARAM = new VitalParameter({
@@ -143,13 +139,20 @@ export const NIBP_DIA_PARAM = new VitalParameter({
   min: 20,
   max: 250,
   decimals: 0,
-  sensitivity: 5,
   alarm: {
     warnLow: 40,
     warnHigh: 100,
     critLow: 20,
     critHigh: 120,
   },
-  color: 'text-orange-600', // ← ★これ追加（型にないので要拡張）
+  color: 'text-orange-600',
 });
 
+export type VitalKey = 'hr' | 'spo2' | 'nibp_sys' | 'nibp_dia';
+
+export const vitalParameterMap: Record<string, VitalParameter> = {
+  hr: HR_PARAM,
+  spo2: SPO2_PARAM,
+  nibp_sys: NIBP_SYS_PARAM,
+  nibp_dia: NIBP_DIA_PARAM,
+};

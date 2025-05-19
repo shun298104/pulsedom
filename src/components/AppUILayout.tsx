@@ -4,38 +4,36 @@ import WaveCanvas from './WaveCanvas';
 import VitalDisplay from './VitalDisplay';
 import { AccordionUIMock } from './AccordionUIMock';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM } from '../models/VitalParameter';
+import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM } from '../types/VitalParameter';
 import { WaveBuffer } from '../engine/WaveBuffer';
 import { SimOptions } from '../types/SimOptions';
 
 interface AppUILayoutProps {
     bufferRef: React.MutableRefObject<Record<string, WaveBuffer>>;
     hr: number;
-    spo2: number;
-    sysBp: number;
-    diaBp: number;
-    setSysBp: (v: number) => void;
-    setDiaBp: (v: number) => void;
     isEditorVisible: boolean;
     setEditorVisible: (v: boolean) => void;
     simOptions: SimOptions;
+    afOptions: { fWaveFreq: number; fWaveAmp: number };
+    aflOptions: { aflFreq: number; conductRatio: number };  
     handleSimOptionsChange: (next: SimOptions) => void;
     isBeepOn: boolean;
     handleBeepToggle: () => void;
+    handleCustomOptionsChange: (ruleId: string, nextOptions: any) => void;
 }
 
 const AppUILayout: React.FC<AppUILayoutProps> = ({
     bufferRef,
     hr,
-    spo2,
-    sysBp,
-    diaBp,
     isEditorVisible,
     setEditorVisible,
     simOptions,
+    afOptions,
+    aflOptions,
     handleSimOptionsChange,
     isBeepOn,
     handleBeepToggle,
+    handleCustomOptionsChange,
 }) => {
     const [is12LeadMode, set12LeadMode] = useState(false);
 
@@ -54,7 +52,7 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
 
             <div className="flex min-h-screen">
                 {/* メインコンテンツエリア */}
-                <div className="flex-1 bg-gray-900 text-white p-4">
+                <div className="flex-1 bg-black text-white p-4 bg-gray-900">
                     {/* ヘッダ */}
                     <div className="flex justify-between items-center mb-4">
                         <span className="text-xl font-bold">Vital Signs Simulator PULSEDOM BETA</span>
@@ -68,44 +66,26 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
 
                     {/* 通常モニタモード */}
                     {!is12LeadMode && (
-                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
-                            {/* Main Lead II */}
-                            <div className="col-span-2 md:col-span-4  lg:col-span-4 order-1">
+                        <div className="grid grid-cols-2 gap-1 rounded-none md:grid-cols-4 lg:grid-cols-6">
+                            <div className="col-span-2 col-span-4 md:col-span-3 order-2 lg:col-span-4 text-sm text-left order-1">
                                 <WaveCanvas bufferRef={bufferRef} signalKey="II" label="Lead II" />
                             </div>
-
-                            {/* V5 */}
-                            <div className="hidden md:block col-span-2 md:col-span-4 lg:col-span-4 text-sm text-left order-4">
+                            <div className="col-span-2 col-span-4 md:col-span-3 order-4 lg:col-span-4 text-sm text-left order-4">
                                 <WaveCanvas bufferRef={bufferRef} signalKey="V5" label="V5" />
                             </div>
-
-                            {/* HR */}
-                            <div className="col-span-1 lg:order-2">
-                                <div className="flex items-center space-x-2 mb-1">
-                                    <span className="text-green-500 text-lg">HR</span>
-                                </div>
+                            <div className="h-full col-span-1 md:order-1 lg:order-2">
                                 <VitalDisplay param={HR_PARAM} value={hr} />
                             </div>
-
-                            {/* SpO2 */}
-                            <div className="col-span-1 lg:order-3">
-                                <div className="flex items-center space-x-2 mb-1">
-                                    <span className="text-cyan-400 text-lg">SpO₂</span>
-                                </div>
-                                <VitalDisplay param={SPO2_PARAM} value={spo2} />
+                            <div className="h-full col-span-1 md:order-2 lg:order-3">
+                                <VitalDisplay param={SPO2_PARAM} value={simOptions.spo2} />
                             </div>
-
-                            {/* NIBP */}
-                            <div className="col-span-2 md:col-span-2 lg:col-span-2 order-5">
-                                <div className="flex items-center space-x-2 mb-1">
-                                    <span className="text-orange-500 text-lg">NIBP</span>
-                                </div>
-                                <div className="flex items-baseline space-x-2 w-full bg-black rounded-2xl">
-                                    <div className="w-1/2">
-                                        <VitalDisplay param={NIBP_SYS_PARAM} value={sysBp} />
+                            <div className="h-full col-span-2 md: lg: order-5">
+                                <div className="h-full relative flex items-end justify-between bg-black">
+                                    <div className="h-full w-1/2">
+                                        <VitalDisplay param={NIBP_SYS_PARAM} value={simOptions.sysBp} />
                                     </div>
-                                    <div className="w-1/2">
-                                        <VitalDisplay param={NIBP_DIA_PARAM} value={diaBp} />
+                                    <div className="h-full w-1/2">
+                                        <VitalDisplay param={NIBP_DIA_PARAM} value={simOptions.diaBp} />
                                     </div>
                                 </div>
                             </div>
@@ -136,9 +116,12 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
                     md:relative md:flex-shrink-0 md:w-[250px]
                   "><AccordionUIMock
                             simOptions={simOptions}
+                            afOptions={afOptions}
+                            aflOptions={aflOptions}
                             onSimOptionsChange={handleSimOptionsChange}
                             isBeepOn={isBeepOn}
                             onToggleBeep={handleBeepToggle}
+                            handleCustomOptionsChange={handleCustomOptionsChange}
                         />
                     </div>
                 )}

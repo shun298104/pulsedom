@@ -10,6 +10,7 @@ interface WaveformSliderProps {
   unit?: string;
   digits?: number;
   onChange: (v: number) => void;
+  colorClass?: string;
 }
 
 const WaveformSlider: React.FC<WaveformSliderProps> = ({
@@ -21,18 +22,19 @@ const WaveformSlider: React.FC<WaveformSliderProps> = ({
   unit = '',
   digits = 2,
   onChange,
+  colorClass,
 }) => {
   return (
     <div className="mb-4">
       <div className="flex justify-between">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label className="text-sm font-medium text-gray-700 ">{label}</label>
         <span className="text-xs text-gray-500">
           {Number.isFinite(value) ? value.toFixed(digits) : '-'} {unit}
         </span>
       </div>
       <input
         type="range"
-        className="w-full"
+        className={`w-full accent-current ${colorClass ?? ''}`}
         value={value}
         min={min}
         max={max}

@@ -9,6 +9,7 @@ import type { PathId } from '../engine/graphs/Path';
 export type GraphControlGroup =
   | 'AtrialStatus'
   | 'JunctionStatus'
+  | 'VentricleStatus'
   | 'VentricularArrhythmia'
   | 'SSS'
   | 'Ischemia'
@@ -46,6 +47,19 @@ export type PathEffect = Partial<{
 }>;
 
 // ==========================
+// UI制御要素定義
+// ==========================
+export type UIControl = {
+  type: 'slider';
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  defaultValue: number;
+};
+
+// ==========================
 // グラフ制御ルール
 // ==========================
 export type GraphControlRule = {
@@ -61,11 +75,15 @@ export type GraphControlRule = {
   /** UI上の分類グループ（例: 'atrial arrhythmia'） */
   group?: GraphControlGroup
 
-//  exclusiveGroup?: GraphControlGroup; // 同じグループ内で排他制御する場合に指定
+  //  exclusiveGroup?: GraphControlGroup; // 同じグループ内で排他制御する場合に指定
 
   /** 適用される効果一覧 */
-  effects: {
+  effects?: {
     node?: Partial<Record<NodeId, NodeEffect>>;
     path?: Partial<Record<PathId, PathEffect>>;
+    setOptions?: Record<string, number>; // ← ここに統合
   };
+  uiControls?: UIControl[];
+  exclusiveGroup?: string; // 他のルールと排他制御する場合に指定
+  generator?: (f: number, a: number) => GraphControlRule;
 };

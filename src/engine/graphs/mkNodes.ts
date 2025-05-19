@@ -18,8 +18,8 @@ export const mkNode = (
   y,
   z,
 
-   // CONFIGの初期化
-   CONFIG: {
+  // CONFIGの初期化
+  CONFIG: {
     autoFire: false,
     ectopic_enabled: false,
     ectopic_probability: 0.0,
@@ -42,17 +42,14 @@ export const mkNode = (
     Object.assign(this.CONFIG, newConfig);
   },
 
-  getRefractoryMs(now) {
+  getRefractoryMs() {
     return this.adaptiveRefractoryMs ?? this.primaryRefractoryMs;
   },
 
   shouldAutoFire(now) {
-    if (this.CONFIG.forceFiring){
-      if(now - this.STATE.lastFiredAt >= this.getRefractoryMs(now)){
-          console.log(this.id, 'forceFiring');
-          this.CONFIG.forceFiring = false;
-          return true;
-      }
+    if (this.CONFIG.forceFiring && !this.isRefractory(now)) {
+      this.CONFIG.forceFiring = false;
+      return true;
     }
     if (this.CONFIG.autoFire) {
       const interval = 60000 / this.bpm;
@@ -61,4 +58,8 @@ export const mkNode = (
 
     return false;
   },
+
+  isRefractory(now) {
+    return now - this.STATE.lastFiredAt < this.getRefractoryMs();
+  }
 });

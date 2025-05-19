@@ -3,6 +3,10 @@
 // リアルタイム波形評価のステップ間隔（ms単位）
 export const STEP_MS = 5;
 
+//　ノードに入ってくる刺激の評価猶予時間
+//　＝canvasで描画しない時間(ms)
+export const MAX_DELAY = 100;
+
 // Canvas描画フレーム間に必要な補完点数＋α
 // → 60fps (16.6ms) の半分 ≒ 8.3ms を安全にカバー
 export const LATEST_BUFFER_SIZE = 200;

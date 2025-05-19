@@ -46,8 +46,9 @@ export interface Node {
   y: number;
   z: number;
 
-  getRefractoryMs: (now: number) => number;
+  getRefractoryMs: () => number;
   shouldAutoFire: (now: number, dynamicHR?: number) => boolean;
+  isRefractory: (now: number) => boolean;
 
   CONFIG: NodeConfig;
   STATE: NodeState;

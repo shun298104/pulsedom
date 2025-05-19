@@ -6,8 +6,9 @@ import { unlockAudio } from './audio/unlockAudio';
 import { createDefaultSimOptions } from './types/SimOptions';
 import { WaveBuffer, WaveBufferMap } from './engine/WaveBuffer';
 import { SimOptions } from './types/SimOptions';
-import AppUILayout from './components/AppUILayout';
 import { leadVectors } from './constants/leadVectors';
+
+import AppUILayout from './components/AppUILayout';
 
 function App() {
   const [simOptions, setSimOptions] = useState<SimOptions>(
@@ -17,13 +18,13 @@ function App() {
   const graphRef = useRef<GraphEngine | null>(null);
 
   const [hr, setHr] = useState(-1);
-  const [spo2, setSpo2] = useState(-1);
-  const [sysBp, setSysBp] = useState(120);
-  const [diaBp, setDiaBp] = useState(80);
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
   const [isEditorVisible, setEditorVisible] = useState(true);
   const isBeepOnRef = useRef(false);
+
+  const [afOptions, setAfOptions] = useState({ fWaveFreq: 400, fWaveAmp: 0.04, conductProb: 0.3 });
+  const [aflOptions, setAflOptions] = useState({ aflFreq: 300, conductRatio: 2 });
 
   const bufferKeys = [
     ...Object.keys(leadVectors),  // I, II, III, aVR, aVL, aVF, V1〜V6
@@ -36,21 +37,7 @@ function App() {
     Object.fromEntries(bufferKeys.map(key => [key, new WaveBuffer()]))
   );
 
-  const sysBpRef = useRef(sysBp);
-  const diaBpRef = useRef(diaBp);
   const [engine, setEngine] = useState<RhythmEngine | null>(null);
-
-  useEffect(() => {
-    setSpo2(simOptions.spo2);
-  }, [simOptions.spo2]);
-
-  useEffect(() => {
-    setSysBp(simOptions.sysBp);
-  }, [simOptions.sysBp]);
-
-  useEffect(() => {
-    setDiaBp(simOptions.diaBp);
-  }, [simOptions.diaBp]);
 
   // 初回レンダー時にインスタンスを生成
   useEffect(() => {
@@ -69,13 +56,14 @@ function App() {
     setEngine(rhythmEngine);
 
     rhythmEngine.setOnHrUpdate(setHr);
-    rhythmEngine.setOnSpo2Update(setSpo2);
 
-    if (graphRef.current) graphRef.current.setDebugLevel(0, 5_000);
+    if (graphRef.current) graphRef.current.setDebugLevel(2, 2_000);
 
     let animationId: number;
     const loop = (now: number) => {
-      rhythmEngine.step(now / 1000);
+      if (isSimRunningRef.current) {
+        rhythmEngine.step(now / 1000, isSimRunningRef.current);
+      }
       animationId = requestAnimationFrame(loop);
     };
     animationId = requestAnimationFrame(loop);
@@ -84,12 +72,16 @@ function App() {
   }, []);
 
   const handleSimOptionsChange = (next: SimOptions) => {
-    //    console.log('[handler sim =]', next)
-    setSimOptions(next);                   // Reactに渡す（非同期で再レンダー）UI描画用
-    simOptionsRef.current = next;          /// 即時参照用として保持（同期で使用OK）
-    graphRef.current?.updateFromSim(next); // グラフエンジンに渡す（即時反映）
+    setSimOptions(next);
+    simOptionsRef.current = next;
+    graphRef.current?.updateFromSim(next);
   };
-
+  const handleCustomOptionsChange = (ruleId: string, nextOptions: any) => {
+    console.log("[handleCustomOptionsChange]", ruleId, nextOptions);
+    if (ruleId === "Af") setAfOptions(nextOptions);
+    if (ruleId === "Afl") setAflOptions(nextOptions);
+    graphRef.current?.updateFromCustomOptions(ruleId, nextOptions);
+  };
   const handleBeepToggle = () => {
     const next = !isBeepOn;
     if (next && !audioCtx) {
@@ -101,29 +93,35 @@ function App() {
     setIsBeepOn(next);
   };
 
+  const isSimRunningRef = useRef(true);
+  const [isSimRunning, setIsSimRunning] = useState(true);
   useEffect(() => {
-    sysBpRef.current = sysBp;
-  }, [sysBp]);
-
+    isSimRunningRef.current = isSimRunning;
+  }, [isSimRunning]);
   useEffect(() => {
-    diaBpRef.current = diaBp;
-  }, [diaBp]);
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSimRunning(false); 
+        console.log('🔚[ESC] Simulation paused');
+      }
+    };
 
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, []);
   return (
     <AppUILayout
       bufferRef={bufferRef}
       hr={hr}
-      spo2={spo2}
-      sysBp={sysBp}
-      diaBp={diaBp}
-      setSysBp={setSysBp}
-      setDiaBp={setDiaBp}
       isEditorVisible={isEditorVisible}
       setEditorVisible={setEditorVisible}
       handleSimOptionsChange={handleSimOptionsChange}
+      handleCustomOptionsChange={handleCustomOptionsChange}
       isBeepOn={isBeepOn}
       handleBeepToggle={handleBeepToggle}
       simOptions={simOptions}
+      afOptions={afOptions}
+      aflOptions={aflOptions}
     />
   );
 }

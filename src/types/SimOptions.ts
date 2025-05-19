@@ -2,7 +2,7 @@
 import { NodeId } from '../types/NodeTypes';
 
 export type RawSimOptions = {
-//  statuses: string[];
+  //  statuses: string[];
   hr: number;
   rr: number;
   spo2: number;
@@ -25,9 +25,12 @@ export type RawSimOptions = {
   };
 
   conductionRate?: string;
+  extended?: Record<string, number>;
+
 };
 
 export class SimOptions {
+
   constructor(raw: RawSimOptions | SimOptions) {
     if (raw instanceof SimOptions) {
       // SimOptionsからのコピー
@@ -40,7 +43,15 @@ export class SimOptions {
   private rawData: RawSimOptions;
 
   getRaw(): RawSimOptions {
-    return structuredClone(this.rawData);
+    return { ...this.rawData }; // ← shallow copyに変更
+  }
+  getOption(key: string): number | undefined {
+    return this.rawData.extended?.[key];
+  }
+
+  setOption(key: string, value: number) {
+    if (!this.rawData.extended) this.rawData.extended = {};
+    this.rawData.extended[key] = value;
   }
 
   get hr() { return this.rawData.hr; }
@@ -49,8 +60,8 @@ export class SimOptions {
   get rr() { return this.rawData.rr; }
   set rr(val: number) { this.rawData.rr = val; }
 
-  get spo2(): number { return this.rawData.spo2; }
-  set spo2(value: number) { this.rawData.spo2 = value; }
+  get spo2(): number { return this.rawData.spo2 ?? 98; }
+  set spo2(val: number) { this.rawData.spo2 = val; }
 
   get sysBp(): number { return this.rawData.nibp_sys ?? 120; }
   set sysBp(val: number) { this.rawData.nibp_sys = val; }
@@ -78,6 +89,8 @@ export class SimOptions {
     }
   }
   set sinus_status(val: string | undefined) { this.rawData.sinus_status = val; }
+  set junction_status(val: string | undefined) { this.rawData.junction_status = val; }
+  set ventricle_status(val: string | undefined) { this.rawData.ventricle_status = val; }
 
   get sinus_status(): string | undefined { return this.rawData.sinus_status; }
   get junction_status(): string | undefined { return this.rawData.junction_status; }

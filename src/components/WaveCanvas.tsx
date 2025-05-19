@@ -95,7 +95,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
         ref={canvasRef}
         width={size.width}
         height={size.height}
-        className="bg-black rounded-2xl"
+        className="bg-black rounded-sm"
       />
       <div className="absolute top-1 left-2 text-sm text-white opacity-80">{labelText}</div>
     </div>
