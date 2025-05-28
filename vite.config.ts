@@ -5,7 +5,7 @@ import path from 'path' // ← これを追加！
 
 export default defineConfig({
   plugins: [react()],
-  base: '/PulseDom/',
+  base: '/PULSEDOM/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
