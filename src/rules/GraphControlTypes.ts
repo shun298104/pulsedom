@@ -2,13 +2,15 @@
 
 import type { NodeId } from '../types/NodeTypes';
 import type { PathId } from '../engine/graphs/Path';
+import { GraphEngine } from '../engine/GraphEngine';
 
 // グラフ制御グループ定義
 // グラフ制御ルールをグループ分けするための定義
 // 例: "不整脈", "刺激伝導系", "心筋虚血", "ペーシング", "特殊" など
 export type GraphControlGroup =
-  | 'AtrialStatus'
-  | 'JunctionStatus'
+  | 'sinus_status'
+  | 'junction_status'
+  | 'conduction_status'
   | 'VentricleStatus'
   | 'VentricularArrhythmia'
   | 'SSS'
@@ -49,15 +51,34 @@ export type PathEffect = Partial<{
 // ==========================
 // UI制御要素定義
 // ==========================
-export type UIControl = {
-  type: 'slider';
-  key: string;
-  label: string;
-  min: number;
-  max: number;
-  step?: number;
-  defaultValue: number;
-};
+export type UIControl =
+  | {
+      type: 'slider';
+      key: string;
+      label: string;
+      min: number;
+      max: number;
+      step?: number;
+      defaultValue: number;
+      tooltip?: string;
+    }
+  | {
+      type: 'select';
+      key: string;
+      label: string;
+      options: { value: string | number; label: string }[];
+      defaultValue: string | number;
+      tooltip?: string;
+    }
+  | {
+      type: 'radio';
+      key: string;
+      label: string;
+      options: { value: string | number; label: string }[];
+      defaultValue: string | number;
+      tooltip?: string;
+    };
+
 
 // ==========================
 // グラフ制御ルール
@@ -85,5 +106,6 @@ export type GraphControlRule = {
   };
   uiControls?: UIControl[];
   exclusiveGroup?: string; // 他のルールと排他制御する場合に指定
-  generator?: (f: number, a: number) => GraphControlRule;
+  updateGraph?: (args: Record<string, any>, graph: GraphEngine) => void; // ★handlerも型で宣言してよい
+
 };

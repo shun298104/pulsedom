@@ -103,8 +103,7 @@ export function calculateDotFactors(
         const n = vec3.normalize(vec3.create(), r);
         const dec = chestDecay(r) * 100;
         // @ts-ignore  — key は V1‑V6
-        factors[key as LeadName] = vec3.dot(rotatedD, n) * dec;
-        console.log
+        factors[key as LeadName] = vec3.dot(rotatedD, n) * dec * 1.2;
     });
 
     return factors;

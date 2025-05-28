@@ -3,13 +3,8 @@
 // リアルタイム波形評価のステップ間隔（ms単位）
 export const STEP_MS = 5;
 
-//　ノードに入ってくる刺激の評価猶予時間
 //　＝canvasで描画しない時間(ms)
-export const MAX_DELAY = 100;
-
-// Canvas描画フレーム間に必要な補完点数＋α
-// → 60fps (16.6ms) の半分 ≒ 8.3ms を安全にカバー
-export const LATEST_BUFFER_SIZE = 200;
+export const MAX_DELAY = 60;
 
 // 1秒あたりのピクセル数（Canvas描画用）
 export const SCALE = {
@@ -29,3 +24,11 @@ export const ECG_CONFIG = {
   samplingRate: 1000, // not used yet, but useful if we synthesize wave buffers later
   stepMs: STEP_MS,
 };
+
+//　心室ノード
+export const VENTRICULAR_NODES: Set<string> = new Set([
+  'LV1BA', 'LV2BAS', 'LV3BS', 'LV4BI', 'LV5BP', 'LV6BL',
+  'LV7MA', 'LV8MAS', 'LV9MS', 'LV10MI', 'LV11MP', 'LV12ML',
+  'LV13AA', 'LV14AAS', 'LV15AI', 'LV16AP', 'LV17A',
+  'RVB1A', 'RVB2S', 'RVM3A', 'RVM4S', 'RVA5A', 'RVA6S',
+]);

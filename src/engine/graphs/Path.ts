@@ -2,8 +2,8 @@
 import { Node } from '../GraphEngine';
 import { vec3, type vec3 as Vec3 } from 'gl-matrix';
 import { LeadName } from '../../constants/leadVectors';
-import type { NodeId } from '../../types/NodeTypes';
 import { calculateDotFactors } from '../../utils/calculateDotFactors';
+import type { NodeId } from '../../types/NodeTypes';
 
 export type PathProps = {
   id: string;
@@ -61,7 +61,7 @@ export class Path {
     this.reversePathId = props.reversePathId ?? null;
     this.polarity = props.polarity ?? 0.1;
     this.priority = props.priority ?? 1;   // 🆕 優先度（小さいほど高優先度）
-  
+
 
     this.delayJitterMs = props.delayJitterMs;
     this.apdMs = props.apdMs;
@@ -110,15 +110,6 @@ export class Path {
     };
   }
 
-  /** ベース波形計算 */
-  public getBaseWave(t: number, rr: number): number {
-    if (!this.computeBaseWave) {
-      console.error(`computeBaseWave is not defined for Path ${this.id}`);
-      return 0;
-    }
-    return this.computeBaseWave(t, rr);
-  }
-
   getReversePath(): Path | undefined {
     return reversePaths.get(this);
   }
@@ -135,6 +126,7 @@ export class Path {
     if (this.conductionProbability !== undefined) {
       const randomValue = Math.random();
       if (randomValue > this.conductionProbability) {
+        console.log(`>>Path ${this.id} conduction blocked by probability (${randomValue} > ${this.conductionProbability})`);
         return false;
       }
     }
@@ -159,10 +151,19 @@ export class Path {
     return this.dotFactors[leadName] ?? 0;
   }
 
+  /** ベース波形計算 */
+  public getBaseWave(t: number, rr: number): number {
+    if (!this.computeBaseWave) {
+      console.error(`computeBaseWave is not defined for Path ${this.id}`);
+      return 0;
+    }
+    return this.computeBaseWave(t, rr);
+  }
+
   /** 電位計算（全リード一括） */
   public getVoltages(now: number, rr: number): Record<LeadName, number> {
     const baseWave = this.getBaseWave(now, rr);
-    //    console.log('Base Wave:', this.id, baseWave); // デバッグ用
+    console.log('Base Wave:', this.id, baseWave); // デバッグ用
     const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
 
     for (const lead in this.dotFactors) {
@@ -181,10 +182,14 @@ export class Path {
   setDelay(delay: number) {
     this.delayMs = delay;
     this.updateParams(this.delayMs, this.apdMs, this.polarity);
-   }
+  }
   setAPD(apd: number) {
     this.apdMs = apd;
     this.updateParams(this.delayMs, this.apdMs, this.polarity);
+  }
+  setRefractoryMs(refractoryMs: number) {
+    this.refractoryMs = refractoryMs
+    console.log(`[path.ts] ${this.id} set Refractory to ${this.refractoryMs}`)
   }
   setPolarity(polarity: number) {
     this.polarity = polarity;

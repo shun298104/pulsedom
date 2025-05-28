@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ECGCanvas from './components/ECGCanvas';
 import SPO2Canvas from './components/SPO2Canvas';
 import { WaveBuffer } from './engine/WaveBuffer';

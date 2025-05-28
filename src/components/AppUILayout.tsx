@@ -3,10 +3,16 @@ import React, { useState } from 'react';
 import WaveCanvas from './WaveCanvas';
 import VitalDisplay from './VitalDisplay';
 import { AccordionUIMock } from './AccordionUIMock';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM } from '../types/VitalParameter';
 import { WaveBuffer } from '../engine/WaveBuffer';
 import { SimOptions } from '../types/SimOptions';
+import { BellOff } from 'lucide-react';
+//import { Graph3D } from './three/Graph3D';
+import saChanIcon from '/public/icons/sa_chan_icon.png';
+
+
+import { AlarmLevel } from '../lib/AlarmController';
 
 interface AppUILayoutProps {
     bufferRef: React.MutableRefObject<Record<string, WaveBuffer>>;
@@ -14,12 +20,13 @@ interface AppUILayoutProps {
     isEditorVisible: boolean;
     setEditorVisible: (v: boolean) => void;
     simOptions: SimOptions;
-    afOptions: { fWaveFreq: number; fWaveAmp: number };
-    aflOptions: { aflFreq: number; conductRatio: number };  
-    handleSimOptionsChange: (next: SimOptions) => void;
     isBeepOn: boolean;
     handleBeepToggle: () => void;
-    handleCustomOptionsChange: (ruleId: string, nextOptions: any) => void;
+    stopAlarm: () => void;
+    alarmLevel: AlarmLevel;
+    alarmMessages: string[];
+    alarmAudioRef: React.RefObject<HTMLAudioElement | null>
+    handleSimOptionsChange: (next: SimOptions) => void;
 }
 
 const AppUILayout: React.FC<AppUILayoutProps> = ({
@@ -28,12 +35,13 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
     isEditorVisible,
     setEditorVisible,
     simOptions,
-    afOptions,
-    aflOptions,
-    handleSimOptionsChange,
     isBeepOn,
     handleBeepToggle,
-    handleCustomOptionsChange,
+    stopAlarm,
+    alarmLevel,
+    alarmMessages,
+    alarmAudioRef,
+    handleSimOptionsChange,
 }) => {
     const [is12LeadMode, set12LeadMode] = useState(false);
 
@@ -45,42 +53,68 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
             {/* サイドエディタトグルボタン */}
             <button
                 onClick={() => setEditorVisible(!isEditorVisible)}
-                className={`fixed top-4 z-50 bg-white border border-zinc-400 px-2 py-1 rounded-l transition-all duration-300 ${isEditorVisible ? 'right-[250px]' : 'right-0'}`}
+                className={`absolute top-2 ${isEditorVisible ? 'right-[262px]' : 'right-2'} w-11 h-11 rounded-full bg-zinc-500 hover:bg-zinc-600 text-white flex items-center justify-center shadow-md z-50`}
             >
-                {isEditorVisible ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                {isEditorVisible ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+            </button>
+            {/* Dr.さーちゃんボタン */}
+            <button
+                onClick={() => alert('Dr.さーちゃん起動〜🩺（※今はダミー）')}
+                className={`hidden absolute top-2 ${isEditorVisible ? 'right-[312px]' : 'right-[58px]'} absolute top-2 w-11 h-11 rounded-full bg-pink-300 hover:bg-pink-400 ring-2 ring-white shadow-md z-50`}
+                title="Ask Dr. Sa-chan"
+            >
+                <img src={saChanIcon} alt="Dr. Sa-chan" className="w-11 h-11 rounded-full" />
+            </button>
+            {/*アラーム消音ボタン*/}
+            <button
+                onClick={stopAlarm}
+                className={`fixed bottom-2 ${isEditorVisible ? 'right-[262px]' : 'right-2'
+                    } w-11 h-11 bg-yellow-500 hover:bg-yellow-600 rounded-full flex items-center justify-center text-white shadow-lg z-50`}
+                title="Stop alarm"
+            >
+                <BellOff size={20} />
+            </button>
+            {/* 12誘導モード切替ボタン */}
+            <button
+                onClick={() => set12LeadMode(!is12LeadMode)}
+                className="fixed  bottom-4 left-4 bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded-xl font-bold"
+            >
+                {is12LeadMode ? "Back to Monitor" : "Show 12 Leads"}
             </button>
 
             <div className="flex min-h-screen">
                 {/* メインコンテンツエリア */}
-                <div className="flex-1 bg-black text-white p-4 bg-gray-900">
+                <div className="flex-1 bg-black text-white p-4 bg-gray-800">
                     {/* ヘッダ */}
+                    <div className={`absolute tracking-tight top-0 left-0 w-full h-12 z-40 flex items-center justify-between text-white font-bold text-base sm:text-lg md:text-xl ${alarmLevel === 'critical' ? 'bg-red-500'
+                        : alarmLevel === 'warning' ? 'bg-yellow-500 text-black' : 'bg-teal-500 text-white'
+                        }`}>
+                        <span className="pl-4">
+                            {alarmLevel === 'normal'
+                                ? 'Vital Signs Simulator PULSEDOM BETA'
+                                : [...alarmMessages]
+                                    .sort((a, b) => a.includes('Critical') ? -1 : 1)
+                                    .map(msg => `[${msg}]`)
+                                    .join(' ')
+                            }
+                        </span>
+                    </div>
                     <div className="flex justify-between items-center mb-4">
                         <span className="text-xl font-bold">Vital Signs Simulator PULSEDOM BETA</span>
-                        <button
-                            onClick={() => set12LeadMode(!is12LeadMode)}
-                            className="bg-teal-500 px-4 py-2 rounded-lg font-bold"
-                        >
-                            {is12LeadMode ? "Back to Monitor" : "Show 12 Leads"}
-                        </button>
+
                     </div>
 
                     {/* 通常モニタモード */}
                     {!is12LeadMode && (
-                        <div className="grid grid-cols-2 gap-1 rounded-none md:grid-cols-4 lg:grid-cols-6">
-                            <div className="col-span-2 col-span-4 md:col-span-3 order-2 lg:col-span-4 text-sm text-left order-1">
-                                <WaveCanvas bufferRef={bufferRef} signalKey="II" label="Lead II" />
-                            </div>
-                            <div className="col-span-2 col-span-4 md:col-span-3 order-4 lg:col-span-4 text-sm text-left order-4">
-                                <WaveCanvas bufferRef={bufferRef} signalKey="V5" label="V5" />
-                            </div>
-                            <div className="h-full col-span-1 md:order-1 lg:order-2">
+                        <div className="grid grid-cols-2 gap-1 rounded-none sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
+                            <div className="h-full col-span-1 sm:order-1 md:order-1">
                                 <VitalDisplay param={HR_PARAM} value={hr} />
                             </div>
-                            <div className="h-full col-span-1 md:order-2 lg:order-3">
+                            <div className="h-full col-span-1 sm:order-2 md:order-2">
                                 <VitalDisplay param={SPO2_PARAM} value={simOptions.spo2} />
                             </div>
-                            <div className="h-full col-span-2 md: lg: order-5">
-                                <div className="h-full relative flex items-end justify-between bg-black">
+                            <div className="h-full col-span-2 sm:order-3 md:order-4">
+                                <div className="h-full relative flex items-end justify-between bg-black rounded-md">
                                     <div className="h-full w-1/2">
                                         <VitalDisplay param={NIBP_SYS_PARAM} value={simOptions.sysBp} />
                                     </div>
@@ -88,6 +122,12 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
                                         <VitalDisplay param={NIBP_DIA_PARAM} value={simOptions.diaBp} />
                                     </div>
                                 </div>
+                            </div>
+                            <div className=" text-sm text-left col-span-2 sm:order-4 sm:col-span-4 md:order-3 xl:col-span-6">
+                                <WaveCanvas bufferRef={bufferRef} signalKey="II" label="Lead II" />
+                            </div>
+                            <div className=" text-sm text-left col-span-2 sm:order-5 sm:col-span-4 md:order-5 xl:col-span-6">
+                                <WaveCanvas bufferRef={bufferRef} signalKey="V5" label="V5" />
                             </div>
                         </div>
                     )}
@@ -112,20 +152,17 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
                 {/* サイドエディタ */}
                 {isEditorVisible && (
                     <div className="
-                    fixed right-0 top-0 w-[250px] h-full bg-white text-black border-l border-zinc-300 p-4 overflow-y-auto z-40 shadow-xl
-                    md:relative md:flex-shrink-0 md:w-[250px]
+                    fixed right-0 top-0 w-[250px] h-full bg-white text-black border-l border-zinc-300 p-4 overflow-y-auto z-40 shadow-xl  
                   "><AccordionUIMock
                             simOptions={simOptions}
-                            afOptions={afOptions}
-                            aflOptions={aflOptions}
-                            onSimOptionsChange={handleSimOptionsChange}
+                            handleSimOptionsChange={handleSimOptionsChange}
                             isBeepOn={isBeepOn}
                             onToggleBeep={handleBeepToggle}
-                            handleCustomOptionsChange={handleCustomOptionsChange}
                         />
                     </div>
                 )}
             </div>
+            <audio ref={alarmAudioRef} preload="auto" />
         </div>
     );
 };

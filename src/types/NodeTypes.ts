@@ -1,9 +1,9 @@
 // src/types/NodeTypes.ts
 
 export type NodeId = 
-  'SA' | 'CT' | 'LA' | 'A' | 'IA' |
+  'SA' | 'CT' | 'A' | 'BM' | 'LA' | 'IA' | 'IAX1' | 'IAX2' |
   'PV1' | 'PV2' | 'CTI1' | 'CTI2' | 'CTI3' |
-  'AN' | 'N' | 'NH' |
+  'AN' | 'N' | 'NH' | 
   'His' | 'V' |
   'RBB' | 'LBB' | 'LAF' | 'LPF' |
   'V_sep' | 'RV' | 'LV_main' | 'RV_auto' |

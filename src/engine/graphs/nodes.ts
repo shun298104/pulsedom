@@ -3,20 +3,28 @@ import { Node } from '../../types/NodeTypes'; // Assuming mkNode and Node types 
 
 export const defaultNodes: Node[] = [
   // --- Main Conduction System & Atria ---
-  mkNode('SA', 80, 200, -6.0, -3.0, -2.0,  { autoFire: true }), // Sinoatrial Node: Right, Superior, Posterior
-  mkNode('CT', 0,  200, -4.0, -3.0, -1.0),                   // Crista Terminalis area: Right, Superior, sl. Posterior
-  mkNode('A',  0,  200,  0.0, -3.0,  0.0),                   // General Atrial (Right Atrium): Right, Superior
-  mkNode('LA', 0,   20,  2.2, -1.0, -3.5),                   // Left Atrium: Left, sl. Superior, Posterior
-  mkNode('IA', 0,   150,  0.0, -0.5, -1.5),                   // Inter-Atrial (e.g. Bachmann or path to AN): Central, Sup, Post
-  mkNode('AN', 0,  300,  0.2, -1.5, -1.5),                   // AV Node (atrial inputs): Central, Superior, Posterior
-  mkNode('N',  0,  250,  0.1, -1.0, -1.0),                   // AV Node (compact): Central, Superior, Posterior
-  mkNode('NH', 40, 250, 0.05, -0.5, -0.5,  { autoFire: true }), // AV Node (Nodal-His): Central, sl. Superior, sl. Posterior
-  mkNode('His', 0, 275,  0.0,  0.0,  0.0),                   // His Bundle: Origin
+  mkNode('SA',  80, 200, -6.0, -3.0, -2.0,  { autoFire: true }), // Sinoatrial Node: Right, Superior, Posterior
+  mkNode('CT',   0, 200, -4.0, -3.0, -1.0),                     // Crista Terminalis area: Right, Superior, sl. Posterior
+
+  mkNode('A',    0, 200,  0.0, -3.0,  0.0),                     // General Atrial (Right Atrium): Right, Superior
+  mkNode('IAX1', 0, 150,  0.0, -2.5, -1.5),
+  mkNode('IAX2', 0, 150,  0.0, -2.0, -1.5),
+  mkNode('IA',   0, 150,  0.0, -1.5, -1.5),                     // Inter-Atrial node（再掲）
+
+  mkNode('AN',  0, 100,  0.2, -1.0, -1.5),                      // AV Node (atrial inputs): Central, Superior, Posterior
+  mkNode('N',   0, 200,  0.1, -1.0, -1.0),                      // AV Node (compact): Central, Superior, Posterior
+  mkNode('NH', 40, 200,  0.0, -0.5, -0.5,  { autoFire: true }), // AV Node (Nodal-His): Central, sl. Superior, sl. Posterior
+  mkNode('His', 0, 275,  0.0,  0.0,  0.0),                      // His Bundle: Origin
 
   // --- Atrial extras ---
-  mkNode('PV1',  0, 15, 3.3, -1.5, -3.0),                   // Pulmonary Vein 1 (LSPV): Left, Sup, Very Post
-  mkNode('PV2',  0, 15, 2.9, -2.5, -4.0),                   // Pulmonary Vein 2 (LIPV): Left, Inf, Very Post
-  mkNode('CTI2', 0, 50, -4.0, 0.0, -3.0),                   // Cavotricuspid Isthmus: Right, Inferior, Anterior
+  mkNode('BM',  0, 110,  1.5, -2.0, -1.8 ),                    // A (Y=200) → LA (Y=20) の40%位置くらいに
+  mkNode('LA',  0,  75,  2.2, -1.0, -3.5),                   // Left Atrium: Left, sl. Superior, Posterior
+  mkNode('PV1', 0,  60,  3.3, -1.5, -3.0),                   // Pulmonary Vein 1 (LSPV): Left, Sup, Very Post
+  mkNode('PV2', 0,  60,  2.9, -2.5, -4.0),                   // Pulmonary Vein 2 (LIPV): Left, Inf, Very Post
+
+  mkNode('CTI1',0,  50, -2.0,  0.0, -1.5),                   // Cavotricuspid Isthmus: Right, Inferior, Anterior
+  mkNode('CTI2',0,  50, -4.0,  0.0, -3.0),                   // Cavotricuspid Isthmus: Right, Inferior, Anterior
+  mkNode('CTI3',0,  50, -2.0,  0.0,  1.5),                   // Cavotricuspid Isthmus: Right, Inferior, Anterior
 
   // --- QRS waveform minimal test nodes / Bundle Branches / Fascicles ---
   mkNode('LBB', 120, 250,  0.5, 1.0, -0.2),                   // Left Bundle Branch: Inf, sl. Left, sl. Post

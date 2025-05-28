@@ -1,5 +1,5 @@
 // src/components/VitalDisplay.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { VitalParameter } from '../types/VitalParameter';
 
 interface VitalDisplayProps {
@@ -13,12 +13,12 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, display }) =>
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempHigh, setTempHigh] = useState(param.alarm.warnHigh);
   const [tempLow, setTempLow] = useState(param.alarm.warnLow);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const getBgColorClass = (): string => {
+    if (value === -1) return 'bg-gray-900';
     if (param.isCritical(value)) return 'bg-red-500';
     if (param.isWarning(value)) return 'bg-yellow-500';
-    return 'bg-black';
+    return 'bg-gray-900';
   };
 
   const getTextColor = (): string => {
@@ -35,49 +35,44 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, display }) =>
     setIsModalOpen(false);
   };
 
-  const canvas = canvasRef.current;
-  const ctx = canvas?.getContext('2d');
-
-  if (ctx && canvas) {
-    console.log('Canvas size:', canvas.width, canvas.height);
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(canvas.width, canvas.height / 2);
-    ctx.lineTo(canvas.width - 5, canvas.height / 2 - 10);
-    ctx.stroke();
-  }
-
   return (
-    <div className={`relative select-none rounded-sm p-4 shadow-xl ${getBgColorClass()} ${getTextColor()} h-full flex flex-col justify-between`}>
+    <div className={`relative select-none rounded-md p-4 shadow-xl ${getBgColorClass()} ${getTextColor()} h-full flex flex-col justify-between`}>
       {/* ラベル（上部中央） */}
-      <div className={`top-4 text-lg font-semibold mb-1 ${getTextColor()}`}>
+      <div className={`top-2 text-lg font-semibold mb-1 ${getTextColor()}`}>
         {param.label}
       </div>
 
-      {/* アラーム範囲（左上） */}
+      {/* アラーム範囲（右上） */}
       <div
-        className={`absolute top-2 right-2 text-sm font-bold cursor-pointer ${getTextColor()}`}
+        className={`absolute top-2 right-2 text-sm font-bold cursor-pointer text-right ${getTextColor()}`}
         onClick={() => setIsModalOpen(true)}
       >
         <div>{param.alarm.warnHigh}</div>
         <div>{param.alarm.warnLow}</div>
       </div>
 
+      {/* 単位（右下） */}
+      <div className={`absolute bottom-2 right-2 text-xs font-bold ${getTextColor()}`}      >
+        {param.unit && `[${param.unit}]`}
+      </div>
 
       {/* メイン数値 + 単位 */}
-      <div className="flex items-end justify-center">
+      <div className="flex items-end justify-center relative">
         <span className={`text-6xl font-mono tabular-nums text-right block ${getTextColor()}`}>
           {display ?? param.format(value)}
         </span>
-        {param.unit && (
-          <span className={`text-3xl font-mono tabular-nums text-right ${getTextColor()}`}>
-            {param.unit}
-          </span>
-        )}
-        {param.key === 'nibp_sys' ? (
-          <div className={`absolute right-0  text-6xl font-mono block ${getTextColor()}`}>
 
+        {param.key === 'nibp_dia' ? (
+          <div
+            className={`absolute right-full text-6xl font-mono leading-none ${getTextColor()}`}
+            style={{
+              top: '45%',
+              transform: 'translate(0.4rem, -50%)',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+            }}
+          >
+            /
           </div>
         ) : null}
       </div>

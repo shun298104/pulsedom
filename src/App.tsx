@@ -7,57 +7,77 @@ import { createDefaultSimOptions } from './types/SimOptions';
 import { WaveBuffer, WaveBufferMap } from './engine/WaveBuffer';
 import { SimOptions } from './types/SimOptions';
 import { leadVectors } from './constants/leadVectors';
-
+import { updateGraphEngineFromSim } from './engine/GraphControl'
+import { decodeSimOptionsFromURL } from './utils/simOptionsURL';
+import { useAlarmSound } from './hooks/useAlarmSound';
+import { stopAlarm } from './lib/AlarmAudioController'
 import AppUILayout from './components/AppUILayout';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 function App() {
-  const [simOptions, setSimOptions] = useState<SimOptions>(
-    new SimOptions(createDefaultSimOptions())
-  );
+  //simoptionの初期化
+  const [simOptions, setSimOptions] = useState<SimOptions>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("sim");
+    const restored = encoded ? decodeSimOptionsFromURL(encoded) : null;
+    return restored ?? new SimOptions(createDefaultSimOptions());
+  });
+
   const simOptionsRef = useRef(simOptions);
   const graphRef = useRef<GraphEngine | null>(null);
-
   const [hr, setHr] = useState(-1);
+
+  //同期音関連
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
   const [isEditorVisible, setEditorVisible] = useState(true);
   const isBeepOnRef = useRef(false);
 
-  const [afOptions, setAfOptions] = useState({ fWaveFreq: 400, fWaveAmp: 0.04, conductProb: 0.3 });
-  const [aflOptions, setAflOptions] = useState({ aflFreq: 300, conductRatio: 2 });
+  //アラームコントロール
+  const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
+  const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef);
+const handleStopAlarm = () => stopAlarm(alarmAudioRef.current, alarmLevel);
 
+  // バッファの初期化
   const bufferKeys = [
     ...Object.keys(leadVectors),  // I, II, III, aVR, aVL, aVF, V1〜V6
     'spo2',
     'pulse',
     'art'
   ] as const;
-  // バッファの初期化
   const bufferRef = useRef<WaveBufferMap>(
     Object.fromEntries(bufferKeys.map(key => [key, new WaveBuffer()]))
   );
 
-  const [engine, setEngine] = useState<RhythmEngine | null>(null);
-
   // 初回レンダー時にインスタンスを生成
+  const [engine, setEngine] = useState<RhythmEngine | null>(null);
   useEffect(() => {
-    if (!graphRef.current) { graphRef.current = GraphEngine.createDefaultEngine(); }
+    const graph = graphRef.current ?? (graphRef.current = GraphEngine.createDefaultEngine());
+    updateGraphEngineFromSim(simOptions, graph);
   }, []);
 
   useEffect(() => {
 
     const rhythmEngine = new RhythmEngine({
-      simOptions: simOptionsRef.current,
       graph: graphRef.current as GraphEngine,
-      audioCtx,
-      isBeepOnRef,
       bufferRef,
+      audioCtx,
+      isBeepOn: () => isBeepOnRef.current,
+      getVitals: () => {
+        const raw = simOptionsRef.current.getRaw();
+        return {
+          spo2: Number(raw.spo2 ?? -1),
+          nibp_sys: Number(raw.nibp_sys ?? 120),
+          nibp_dia: Number(raw.nibp_dia ?? 70),
+        };
+      },
+      onHrUpdate: setHr,
     });
     setEngine(rhythmEngine);
 
     rhythmEngine.setOnHrUpdate(setHr);
 
-    if (graphRef.current) graphRef.current.setDebugLevel(2, 2_000);
+    if (graphRef.current) graphRef.current.setDebugLevel(2, 5_000);
 
     let animationId: number;
     const loop = (now: number) => {
@@ -74,14 +94,10 @@ function App() {
   const handleSimOptionsChange = (next: SimOptions) => {
     setSimOptions(next);
     simOptionsRef.current = next;
-    graphRef.current?.updateFromSim(next);
+    const graph = graphRef.current;
+    if (graph) updateGraphEngineFromSim(next, graph);
   };
-  const handleCustomOptionsChange = (ruleId: string, nextOptions: any) => {
-    console.log("[handleCustomOptionsChange]", ruleId, nextOptions);
-    if (ruleId === "Af") setAfOptions(nextOptions);
-    if (ruleId === "Afl") setAflOptions(nextOptions);
-    graphRef.current?.updateFromCustomOptions(ruleId, nextOptions);
-  };
+
   const handleBeepToggle = () => {
     const next = !isBeepOn;
     if (next && !audioCtx) {
@@ -98,31 +114,35 @@ function App() {
   useEffect(() => {
     isSimRunningRef.current = isSimRunning;
   }, [isSimRunning]);
+
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsSimRunning(false); 
+        setIsSimRunning(false);
         console.log('🔚[ESC] Simulation paused');
       }
     };
-
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
   }, []);
+
   return (
-    <AppUILayout
-      bufferRef={bufferRef}
-      hr={hr}
-      isEditorVisible={isEditorVisible}
-      setEditorVisible={setEditorVisible}
-      handleSimOptionsChange={handleSimOptionsChange}
-      handleCustomOptionsChange={handleCustomOptionsChange}
-      isBeepOn={isBeepOn}
-      handleBeepToggle={handleBeepToggle}
-      simOptions={simOptions}
-      afOptions={afOptions}
-      aflOptions={aflOptions}
-    />
+    <Tooltip.Provider>
+      <AppUILayout
+        bufferRef={bufferRef}
+        alarmAudioRef={alarmAudioRef}
+        hr={hr}
+        isEditorVisible={isEditorVisible}
+        setEditorVisible={setEditorVisible}
+        handleSimOptionsChange={handleSimOptionsChange}
+        isBeepOn={isBeepOn}
+        handleBeepToggle={handleBeepToggle}
+        simOptions={simOptions}
+        stopAlarm={handleStopAlarm}
+        alarmLevel={alarmLevel}
+        alarmMessages={alarmMessages}
+      />
+    </Tooltip.Provider>
   );
 }
 

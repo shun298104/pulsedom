@@ -1,58 +1,86 @@
-// src/components/ui/StatusButtons.tsx
-
-import { graphControlRules } from '../../rules/graphControlRuleList';
-import type { GraphControlGroup, GraphControlRule } from '../../rules/GraphControlTypes';
+import React from 'react';
+import * as Tooltip from '@radix-ui/react-tooltip'; // ← 追加！
 import { SimOptions } from '../../types/SimOptions';
+import { ruleMap } from '../../rules/graphControlRuleList';
+import RuleControlUI from './RuleControlUI';
 
-export function applyRuleToSimOptions(rule: GraphControlRule, sim: SimOptions): SimOptions {
-  const next = new SimOptions(sim);
-
-  // ステータスを設定（groupに応じて）
-  if (rule.group === 'AtrialStatus') next.sinus_status = rule.id;
-  if (rule.group === 'JunctionStatus') next.junction_status = rule.id;
-  if (rule.group === 'VentricleStatus') next.ventricle_status = rule.id;
-
-  // uiControlsからoptionsを設定（主に静的ルール用）
-  rule.uiControls?.forEach(ctrl => {
-    if ('key' in ctrl && ctrl.defaultValue !== undefined) {
-      next.setOption(ctrl.key, ctrl.defaultValue);
-    }
-  });
-
-  return next;
-}
-
-interface Props {
-  group: GraphControlGroup;
+interface StatusButtonsProps {
+  group: string;
   current: string;
   simOptions: SimOptions;
-  onSimOptionsChange: (next: SimOptions) => void;
+  handleSimOptionsChange: (next: SimOptions) => void;
 }
 
-export function StatusButtons({
+const getStatusesByGroup = (group: string): string[] => {
+  return Object.values(ruleMap)
+    .filter(rule => rule.group === group)
+    .map(rule => rule.id);
+};
+
+const StatusButtons: React.FC<StatusButtonsProps> = ({
   group,
   current,
   simOptions,
-  onSimOptionsChange,
-}: Props) {
-  const options = graphControlRules.filter(rule => rule.group === group);
+  handleSimOptionsChange,
+}) => {
+  const statuses = getStatusesByGroup(group);
+
+  const handleClick = (status: string) => {
+    const next = simOptions.clone();
+    next.setStatus(group, status);
+    handleSimOptionsChange(next);
+  };
+
+  const ruleId = current;
+  const rule = ruleMap[ruleId];
+  const extendedKey = ruleId.toLowerCase();
 
   return (
-    <div className="flex gap-2 text-xs">
-      {options.map((rule: GraphControlRule) => (
-        <button
-          key={rule.id}
-          className={`px-2 py-1 rounded border ${
-            current === rule.id ? 'bg-zinc-300' : 'bg-white'
-          }`}
-          onClick={() => {
-            const updated = applyRuleToSimOptions(rule, simOptions);
-            onSimOptionsChange(updated); 
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Tooltip.Provider>
+          {statuses.map((status) => {
+            const rule = ruleMap[status];
+            return (
+              <Tooltip.Root key={status}>
+                <Tooltip.Trigger asChild>
+                  <button
+                    onClick={() => handleClick(status)}
+                    className={`px-3 py-1 rounded border text-xs font-medium tracking-wide transition ${current === status
+                        ? 'bg-zinc-300 text-green-700 border-zinc-400'
+                        : 'hover:bg-zinc-200 border-zinc-400'
+                      }`}
+                  >
+                    {status}
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Content
+                  className="bg-teal-500 text-white text-sm font-small font-semibold tracking-wide px-2 py-1 rounded-md shadow-md border border-teal-100 max-w-xs break-words z-50"
+                  side="top"
+                  sideOffset={4}
+                >
+                  {rule?.label ?? ''}
+                  <Tooltip.Arrow className="fill-black" />
+                </Tooltip.Content>
+              </Tooltip.Root>
+            );
+          })}
+        </Tooltip.Provider>
+      </div>
+
+      {rule?.uiControls && (
+        <RuleControlUI
+          controls={rule.uiControls}
+          values={simOptions.getOptionsForStatus(extendedKey)}
+          onChange={(key, value) => {
+            const next = simOptions.clone();
+            next.setExtendedOption(extendedKey, key, value);
+            handleSimOptionsChange(next);
           }}
-        >
-          {rule.label}
-        </button>
-      ))}
+        />
+      )}
     </div>
   );
-}
+};
+
+export default StatusButtons;

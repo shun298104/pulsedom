@@ -18,7 +18,6 @@ export class VitalParameter {
   color: string = 'text-white';
   key: keyof RawSimOptions;
 
-
   constructor({
     label,
     unit,
@@ -59,10 +58,15 @@ export class VitalParameter {
     return value.toFixed(this.decimals);
   }
 
-  getStatus(value: number): 'normal' | 'warn' | 'critical' {
-    if (value <= this.alarm.critLow || value >= this.alarm.critHigh) return 'critical';
-    if (value <= this.alarm.warnLow || value >= this.alarm.warnHigh) return 'warn';
-    return 'normal';
+  getStatus(value: number): {
+    level: 'normal' | 'warning' | 'critical';
+    bound: 'low' | 'high' | null;
+  } {
+    if (value < this.alarm.critLow) return { level: 'critical', bound: 'low' };
+    if (value > this.alarm.critHigh) return { level: 'critical', bound: 'high' };
+    if (value < this.alarm.warnLow) return { level: 'warning', bound: 'low' };
+    if (value > this.alarm.warnHigh) return { level: 'warning', bound: 'high' };
+    return { level: 'normal', bound: null };
   }
 
   isCritical(value: number): boolean {
@@ -70,8 +74,8 @@ export class VitalParameter {
   }
   isWarning(value: number): boolean {
     return (
-      (value < this.alarm.warnLow && value > this.alarm.critLow) ||
-      (value > this.alarm.warnHigh && value < this.alarm.critHigh)
+      (value < this.alarm.warnLow && value >= this.alarm.critLow) ||
+      (value > this.alarm.warnHigh && value <= this.alarm.critHigh)
     );
   }
 
@@ -85,11 +89,11 @@ export class VitalParameter {
 export const HR_PARAM = new VitalParameter({
   key: 'hr',
   label: 'HR',
-  unit: '',
+  unit: '/min',
   min: 5,
   max: 250,
   decimals: 0,
-  color: 'text-green-500',
+  color: 'text-green-400',
 
   alarm: {
     warnLow: 50,
@@ -102,16 +106,16 @@ export const HR_PARAM = new VitalParameter({
 export const SPO2_PARAM = new VitalParameter({
   key: 'spo2',
   label: 'SpO2',
-  unit: '',
+  unit: '%',
   min: 0,
   max: 100,
   decimals: 0,
   color: 'text-cyan-400',
 
   alarm: {
-    warnLow: 89,
+    warnLow: 90,
     warnHigh: 100,
-    critLow: 79,
+    critLow: 80,
     critHigh: 100,
   },
 });
@@ -119,33 +123,33 @@ export const SPO2_PARAM = new VitalParameter({
 export const NIBP_SYS_PARAM = new VitalParameter({
   key: 'nibp_sys',
   label: 'SysBP',
-  unit: '',
+  unit: 'mmHg',
   min: 30,
   max: 250,
   decimals: 0,
   alarm: {
     warnLow: 80,
     warnHigh: 140,
-    critLow: 60,
-    critHigh: 180,
+    critLow: 0,
+    critHigh: 300,
   },
-  color: 'text-orange-600',
+  color: 'text-orange-400',
 });
 
 export const NIBP_DIA_PARAM = new VitalParameter({
   key: 'nibp_dia',
   label: 'DiaBP',
-  unit: '',
+  unit: 'mmHg',
   min: 20,
   max: 250,
   decimals: 0,
   alarm: {
     warnLow: 40,
     warnHigh: 100,
-    critLow: 20,
-    critHigh: 120,
+    critLow: 0,
+    critHigh: 300,
   },
-  color: 'text-orange-600',
+  color: 'text-orange-400',
 });
 
 export type VitalKey = 'hr' | 'spo2' | 'nibp_sys' | 'nibp_dia';

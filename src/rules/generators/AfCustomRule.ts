@@ -1,12 +1,15 @@
+//src/rules/generators/AfCustomRule.ts
+
 import { GraphControlRule } from '../GraphControlTypes';
 import { GraphEngine } from '../../engine/GraphEngine';
 
 export const Af: GraphControlRule = {
     id: 'Af',
     label: 'Atrial Fibrillation',
-    group: 'AtrialStatus',
+    group: 'sinus_status',
     exclusiveGroup: 'AtrialArrhythmia',
     description: 'Blocks A→IA and applies probabilistic conduction from IA to AN. SA node suppressed.',
+    updateGraph: updateGraphWithAfCustomArgs,
     effects: {
         node: {
             SA: { autofire: false },
@@ -15,13 +18,13 @@ export const Af: GraphControlRule = {
         path: {
             'A->IA': { block: true },
             'A->IA_retro': { block: true },
-            'A->LA': { block: true },
-            'LA->IA': { block: false, delayJitterMs: 30 },
+            'A->BM': { block: true }, 
+            'LA->IA': { block: false },
             'LA->PV1': { block: false },
             'PV1->PV2': { block: false },
             'PV2->LA': { block: false },
             'IA->AN_fast': { probability: 0.3 },
-            'IA->AN_slow': { probability: 0.3 },
+            'IA->AN_slow_1': { probability: 0.3 },
         },
     },
     uiControls: [
@@ -38,15 +41,15 @@ export const Af: GraphControlRule = {
             type: 'slider',
             key: 'fWaveAmp',
             label: 'f-wave amplitude',
-            min: 0.1,
+            min: 0.0,
             max: 0.2,
             step: 0.02,
-            defaultValue: 0.5,
+            defaultValue: 0.04,
         },
         {
             type: 'slider',
-            key: 'CosnductProbability',
-            label: 'CosnductProbability',
+            key: 'conductProb',
+            label: 'Conduction Probability',
             min: 0.1,
             max: 0.8,
             step: 0.1,
@@ -57,10 +60,11 @@ export const Af: GraphControlRule = {
 
 
 export function updateGraphWithAfCustomArgs(args: Record<string, number>,   graph: GraphEngine) {
-    const f = args.fWaveFreq ?? 400;
-    const a = args.fWaveAmp ?? 0.05;
-    const p = args.conductProb ?? 0.3;
-    const delayMs = Math.floor(1000 / (f / 60) / 3) - 7;
+    console.log("[AfCustom]",args);
+    const f = args.fWaveFreq;
+    const a = args.fWaveAmp;
+    const p = args.conductProb;
+    const delayMs = Math.floor(1000 / (f / 60) / 3) - 5;
     console.log("[AfCustom]", f, a, p, delayMs);
 
     // Graph内でパス取得してパラメータ更新
@@ -73,5 +77,5 @@ export function updateGraphWithAfCustomArgs(args: Record<string, number>,   grap
     graph.getPath('PV2->LA')?.setAmplitude(a);
 
     graph.getPath('IA->AN_fast')?.setConductionProbability(p); 
-    graph.getPath('IA->AN_slow')?.setConductionProbability(p); 
+    graph.getPath('IA->AN_slow_1')?.setConductionProbability(p); 
 }

@@ -13,7 +13,7 @@ export interface WaveMeta {
     spo2: {
       label: 'SpO₂',
       unit: '%',
-      color: 'cyan',
+      color: '#22d3ee',
       gain: 1.5,
       baselineRatio: 0.5,
     },

@@ -1,11 +1,8 @@
 //src/engine/GraphEngine.ts
-import { SimOptions } from '../types/SimOptions';
 import { Path } from './graphs/Path';
 import { defaultNodes } from './graphs/nodes';
 import { createDefaultPaths } from './graphs/paths';
 import { Node, NodeId } from '../types/NodeTypes';
-import { updateGraphEngineFromSim } from './GraphControl';
-import { handlerMap } from '../rules/generators/customHandlers';
 import { MAX_DELAY } from '../constants/constants';
 
 export class GraphEngine {
@@ -68,6 +65,7 @@ export class GraphEngine {
 
   /** デバッグログ */
   private log(level: number, message: string, now: number) {
+    if (this.debugLevel <= 2 && (message.includes('RV') || message.includes('LV')) ) return;
     if (this.debugLevel >= level) {
       console.log(`[${Math.round(now)}] ${message}`);
     }
@@ -83,19 +81,6 @@ export class GraphEngine {
         console.log('🔕 [GE] debugLevel auto-reset to 0');
       }, autoResetMs);
     }
-  }
-
-  /** シミュレーションオプションの反映 */
-  updateFromSim(simOptions: SimOptions) {
-    //    console.log('[GraphEngine] updateFromSim', simOptions.sinusRate);
-    this.nodes['SA'].bpm = simOptions.sinusRate;
-    this.nodes['NH'].bpm = simOptions.junctionRate;
-    this.nodes['PLV3BS'].bpm = simOptions.ventricleRate;
-    updateGraphEngineFromSim(simOptions, this.nodes, this.paths);
-  }
-  updateFromCustomOptions(ruleId: string, options: Record<string, number>) {
-    const handler = handlerMap[ruleId];
-    if (handler) { handler(options, this); }
   }
 
   /** ノードの最終発火時間を取得 */
@@ -125,7 +110,7 @@ export class GraphEngine {
 
     for (const path of outgoingPaths) {
       if (path.blocked) {
-        this.log(3, `  📨⛔ ${path.id} is blocked`, now);
+        this.log(2, `  📨⛔ ${path.id} is blocked`, now);
         continue;
       }
       if (!path.canConduct(now)) {
@@ -133,23 +118,23 @@ export class GraphEngine {
         continue;
       }
 
-    // 伝導遅延を考慮して発火時間を計算
-    const fireAt = now + path.getDelay();
-    // pathの不応期を設定（delay後にfireされるため）
-    path.absoluteRefractoryUntil = now + path.refractoryMs;
+      // 伝導遅延を考慮して発火時間を計算
+      const fireAt = now + path.getDelay();
+      // pathの不応期を設定（delay後にfireされるため）
+      path.absoluteRefractoryUntil = now + path.refractoryMs;
 
-    const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id && f.fireAt === fireAt);
-    if (alreadyScheduled) continue;
+      const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id && f.fireAt === fireAt);
+      if (alreadyScheduled) continue;
 
-    this.scheduledFires.push({ target: path.to, via: path.id, fireAt });
-    this.log(2, `  📨 (${path.id}) scheduled at ${Math.round(fireAt)}, but NOT fired yet.`, now);
-    this.log(3, `[scheduledFires was pushed!]  ${JSON.stringify(this.scheduledFires)}`, now)
+      this.scheduledFires.push({ target: path.to, via: path.id, fireAt });
+      this.log(2, `  📨 (${path.id}) scheduled at ${Math.round(fireAt)}, but NOT fired yet.`, now);
+      this.log(3, `[scheduledFires was pushed!]  ${JSON.stringify(this.scheduledFires)}`, now)
     }
   }
 
   /** メインのtickループ */
   tick(now: number): string[] {
-    if (this.scheduledFires.length>0) this.log(3, `[TICK] scheduledFires: ${JSON.stringify(this.scheduledFires)}`, now);
+    if (this.scheduledFires.length > 0) this.log(3, `[TICK] scheduledFires: ${JSON.stringify(this.scheduledFires)}`, now);
     const firingEvents: string[] = [];
 
     // 自動発火
@@ -166,22 +151,27 @@ export class GraphEngine {
 
     // 予定された伝導イベント（maxDelay考慮 + earliestMapによる決定性制御）
     const earliestMap: Map<NodeId, typeof this.scheduledFires[number]> = new Map();
-    
-    for (const sched of this.scheduledFires) {
-      if (sched.fireAt > now + MAX_DELAY) continue;
 
+    for (const sched of this.scheduledFires) {
+      if (sched.fireAt > now + MAX_DELAY) {
+        this.log(1, `${sched.target} was canceled. ${sched.fireAt - now} > MAX_DELAY(${MAX_DELAY})`, now) 
+//        continue;
+      }
       const prev = earliestMap.get(sched.target);
       if (!prev || sched.fireAt < prev.fireAt) {
         earliestMap.set(sched.target, sched);
       }
     }
 
-    if(this.scheduledFires.length > 0)this.log(3, `[earliestMap] : ${JSON.stringify([...earliestMap.entries()].map(([k,v]) => [k, v]))}`, now);
+    if (this.scheduledFires.length > 0) this.log(3, `[earliestMap] : ${JSON.stringify([...earliestMap.entries()].map(([k, v]) => [k, v]))}`, now);
 
     const remaining: typeof this.scheduledFires = [];
     for (const sched of this.scheduledFires) {
       // 未使用のfutureイベントは保持（maxDelay超過は上で弾かれている）
-      if (sched.fireAt > now + MAX_DELAY) continue;
+      if (sched.fireAt > now + MAX_DELAY) {
+        console.log(`${sched.via} was canceled due to MAX_DELAY. (${(sched.fireAt-now).toFixed(0)} > ${MAX_DELAY}`)
+        continue;
+      }
       if (sched.fireAt > now) {
         remaining.push(sched);
         continue;
@@ -195,7 +185,7 @@ export class GraphEngine {
       const targetNode = this.nodes[sched.target];
       const path = this.paths.find(p => p.id === sched.via);
 
-      if (!targetNode){
+      if (!targetNode) {
         this.log(2, "targetNode dose NOT exist.", now);
         continue;
       }
@@ -212,7 +202,7 @@ export class GraphEngine {
           this.log(3, `[TICK] path.absoluteRefractoryUntil: ${path.absoluteRefractoryUntil}`, now);
         }
 
-//        this.scheduleConduction(targetNode.id, sched.fireAt);
+        //        this.scheduleConduction(targetNode.id, sched.fireAt);
         this.scheduleConduction(targetNode.id, now);
         this.log(3, `[TICK] targetNode.STATE.lastFiredAt: ${targetNode.STATE.lastFiredAt}`, now);
       } else {
@@ -222,7 +212,7 @@ export class GraphEngine {
 
     this.scheduledFires = remaining;
     return firingEvents;
-    
+
   }
 
   /** リバースパスを取得 */

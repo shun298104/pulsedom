@@ -17,7 +17,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
   const meta = waveMetaMap[signalKey];
   const gain = meta?.gain ?? PX_SCALE.pxPerMv;
   const baselineRatio = meta?.baselineRatio ?? 0.66;
-  const strokeStyle = meta?.color ?? 'lime';
+  const strokeStyle = meta?.color ?? '#4ade80';
   const labelText = meta?.label ?? signalKey;
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       ctx.clearRect(0, 0, size.width, size.height);
       ctx.strokeStyle = strokeStyle;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 3;
       ctx.beginPath();
 
       for (let i = 0; i < wave.length; i++) {
@@ -64,7 +64,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       // 1mVスケール
       const scaleX = 10;
-      const scaleHeight = gain * 1;  // 1mVスケール
+      const scaleHeight = gain * 1;
       const scaleTop = size.height / 2 - scaleHeight/2;
       const scaleBottom = size.height / 2 + scaleHeight/2;
 
@@ -95,7 +95,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
         ref={canvasRef}
         width={size.width}
         height={size.height}
-        className="bg-black rounded-sm"
+        className=" bg-gray-900 rounded-md"
       />
       <div className="absolute top-1 left-2 text-sm text-white opacity-80">{labelText}</div>
     </div>

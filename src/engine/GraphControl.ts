@@ -1,17 +1,17 @@
 //src/engine/UpdateGraph.ts
 
 import { graphControlRules } from '../rules/graphControlRuleList';
-import { GraphEngine } from './GraphEngine';
 import type { SimOptions } from '../types/SimOptions';
-import type { Node } from '../types/NodeTypes';
-import type { Path } from './graphs/Path';
+import { GraphEngine } from './GraphEngine';
 
 /** GraphControlRulesのすべてを適用 */
-export function updateGraphEngineFromSim(sim: SimOptions, nodes: Record<string, Node>, paths: Path[]) {
+export function updateGraphEngineFromSim(sim: SimOptions,  graph: GraphEngine) {
+  const nodes = graph.nodes;
+  const paths = graph.getPaths();
 
   nodes['SA'].bpm = sim.sinusRate;
   nodes['NH'].bpm = sim.junctionRate;
-//  nodes['RV'].bpm = sim.ventricleRate;
+  nodes['PLV3BS'].bpm = sim.ventricleRate;
 
   const statuses = sim.statuses;
   console.log('[GC] statuses', statuses);
@@ -54,18 +54,10 @@ export function updateGraphEngineFromSim(sim: SimOptions, nodes: Record<string, 
         // ほかのプロパティは必要に応じて追加
       }
     }
+    // カスタムupdateGraph()が定義されていれば呼び出す
+    if (rule.updateGraph) {
+      const options = sim.getOptionsForStatus(rule.id);
+      rule.updateGraph(options, graph);
+    }
   }
-}
-export function applyRatesToNodes(graph: GraphEngine, simOptions: SimOptions) {
-  // Sinus node
-  const sa = graph.getNode('SA');
-  if (sa && simOptions.sinusRate !== undefined) sa.bpm = simOptions.sinusRate;
-
-  // Junction node (NH)
-  const nh = graph.getNode('NH');
-  if (nh && simOptions.junctionRate !== undefined) nh.bpm = simOptions.junctionRate;
-
-  // Ventricle node (RV)
-  const rv = graph.getNode('RV');
-  if (rv && simOptions.ventricleRate !== undefined) rv.bpm = simOptions.ventricleRate;
 }

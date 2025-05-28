@@ -1,34 +1,30 @@
 import { SimOptions } from "../types/SimOptions";
+import { ruleMap } from '../rules/graphControlRuleList';
+import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
+
 import WaveformSlider from "./ui/WaveformSlider";
+import StatusButtons from "./ui/StatusButtons";
+import RuleControlUI from './ui/RuleControlUI';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "./ui/accordion";
-import { StatusButtons } from "./ui/StatusButtons";
-import { graphControlRules } from "../rules/graphControlRuleList";
-import { AfCustomControl } from "./controls/AfCustomControl";
 
 interface AccordionUIMockProps {
   simOptions: SimOptions;
-  afOptions: { fWaveFreq: number; fWaveAmp: number, conductProb: number };
-  aflOptions: { aflFreq: number; conductRatio: number };
-  onSimOptionsChange: (next: SimOptions) => void;
+  handleSimOptionsChange: (next: SimOptions) => void;
   isBeepOn: boolean;
   onToggleBeep: () => void;
-  handleCustomOptionsChange: (ruleId: string, nextOptions: any) => void;
 }
 
 export function AccordionUIMock({
 
   simOptions,
-  afOptions,
-  aflOptions,
-  onSimOptionsChange,
+  handleSimOptionsChange,
   isBeepOn,
   onToggleBeep,
-  handleCustomOptionsChange,
 
 }: AccordionUIMockProps) {
   // ------- 状態更新関数（SimOptions クラス対応） --------
@@ -48,12 +44,8 @@ export function AccordionUIMock({
         next.ventricleRate = value;
         break;
     }
-    onSimOptionsChange(next);
+    handleSimOptionsChange(next);
   };
-
-  const selectedRule = graphControlRules.find(
-    (r) => r.id === simOptions.sinus_status
-  );
 
   return (
     <div className="space-y-2">
@@ -66,6 +58,18 @@ export function AccordionUIMock({
           onClick={onToggleBeep}
         >
           {isBeepOn ? "🔔 SYNC BEEP ON" : "🔕 SYNC BEEP"}
+        </button>
+        <button
+          className="text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
+          onClick={() => {
+            const encoded = encodeSimOptionsToURL(simOptions);
+            const url = `${window.location.origin}?sim=${encoded}`;
+            navigator.clipboard.writeText(url)
+              .then(() => alert("✅ URL copied!"))
+              .catch(() => alert("❌ Failed to copy URL"));
+          }}
+        >
+          🔗 COPY URL
         </button>
       </div>
 
@@ -80,7 +84,7 @@ export function AccordionUIMock({
         onChange={(v: number) => {
           const next = new SimOptions(simOptions);
           next.spo2 = v;
-          onSimOptionsChange(next);
+          handleSimOptionsChange(next);
         }}
         colorClass="accent-cyan-600"
       />
@@ -96,7 +100,7 @@ export function AccordionUIMock({
           onChange={(v: number) => {
             const next = new SimOptions(simOptions);
             next.sysBp = v;
-            onSimOptionsChange(next);
+            handleSimOptionsChange(next);
           }}
           colorClass="accent-orange-600"
         />
@@ -111,7 +115,7 @@ export function AccordionUIMock({
           onChange={(v: number) => {
             const next = new SimOptions(simOptions);
             next.diaBp = v;
-            onSimOptionsChange(next);
+            handleSimOptionsChange(next);
           }}
           colorClass="accent-orange-600"
         />
@@ -122,7 +126,7 @@ export function AccordionUIMock({
           <AccordionTrigger>Sinus Node</AccordionTrigger>
           <AccordionContent className="space-y-2 text-sm">
             <WaveformSlider
-              label="Sinus Rate (bpm)"
+              label="Sinus Rate"
               value={simOptions.sinusRate}
               min={0}
               max={200}
@@ -134,24 +138,11 @@ export function AccordionUIMock({
             />
 
             <StatusButtons
-              group="AtrialStatus"
-              current={simOptions.sinus_status ?? ''}
+              group="sinus_status"
+              current={simOptions.getStatus('sinus_status') ?? ''}
               simOptions={simOptions}
-              onSimOptionsChange={onSimOptionsChange}
+              handleSimOptionsChange={handleSimOptionsChange}
             />
-            {simOptions.sinus_status === 'Af' && (
-              <AfCustomControl
-                options={{
-                  fWaveFreq: afOptions.fWaveFreq ?? 400,
-                  fWaveAmp: afOptions.fWaveAmp ?? 0.5,
-                  conductProb: afOptions.conductProb ?? 0.3,
-                }}
-                onOptionsChange={(key, value) => {
-                  const next = { ...afOptions, [key]: value };
-                  handleCustomOptionsChange("Af", next);
-                }}
-              />
-            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -159,7 +150,7 @@ export function AccordionUIMock({
           <AccordionTrigger>Junction Node</AccordionTrigger>
           <AccordionContent className="space-y-1">
             <WaveformSlider
-              label="Junction Rate (bpm)"
+              label="Junction Rate"
               value={simOptions.junctionRate}
               min={0}
               max={200}
@@ -170,10 +161,17 @@ export function AccordionUIMock({
               colorClass="accent-green-500"
             />
             <StatusButtons
-              group="JunctionStatus"
-              current={simOptions.junction_status ?? ''}
+              group="junction_status"
+              current={simOptions.getStatus('junction_status') ?? ''}
               simOptions={simOptions}
-              onSimOptionsChange={onSimOptionsChange}
+              handleSimOptionsChange={handleSimOptionsChange}
+            />
+            
+            <StatusButtons
+              group="conduction_status"
+              current={simOptions.getStatus('conduction_status') ?? ''}
+              simOptions={simOptions}
+              handleSimOptionsChange={handleSimOptionsChange}
             />
           </AccordionContent>
         </AccordionItem>
@@ -182,7 +180,7 @@ export function AccordionUIMock({
           <AccordionTrigger>Ventricle Node</AccordionTrigger>
           <AccordionContent className="space-y-1">
             <WaveformSlider
-              label="Ventricle Rate (bpm) "
+              label="Ventricle Rate"
               value={simOptions.ventricleRate}
               min={0}
               max={200}
@@ -198,10 +196,11 @@ export function AccordionUIMock({
           <AccordionContent className="space-y-1">
             <StatusButtons
               group="demo"
-              current={simOptions.sinus_status ?? "AtrialNormal"}
+              current={simOptions.sinus_status ?? ''}
               simOptions={simOptions}
-              onSimOptionsChange={onSimOptionsChange}
+              handleSimOptionsChange={handleSimOptionsChange}
             />
+
           </AccordionContent>
         </AccordionItem>
       </Accordion>
