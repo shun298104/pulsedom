@@ -1,10 +1,13 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
+// src/main.tsx
+console.log('🔥 [main.tsx] loaded');
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css' 
+
+import App from './App.tsx'; // ← 開発中の関数型バージョンに切り替え
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);
