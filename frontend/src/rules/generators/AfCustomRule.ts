@@ -9,7 +9,7 @@ export const Af: GraphControlRule = {
     group: 'sinus_status',
     exclusiveGroup: 'AtrialArrhythmia',
     description: 'Blocks A→IA and applies probabilistic conduction from IA to AN. SA node suppressed.',
-    updateGraph: updateGraphWithAfCustomArgs,
+    updateGraph: updateGraphWith_Af_CustomArgs,
     effects: {
         node: {
             SA: { autofire: false },
@@ -30,7 +30,7 @@ export const Af: GraphControlRule = {
     uiControls: [
         {
             type: 'slider',
-            key: 'fWaveFreq',
+            key: 'afWaveFreq',
             label: 'f-wave frequency',
             min: 300,
             max: 600,
@@ -39,7 +39,7 @@ export const Af: GraphControlRule = {
         },
         {
             type: 'slider',
-            key: 'fWaveAmp',
+            key: 'afWaveAmp',
             label: 'f-wave amplitude',
             min: 0.0,
             max: 0.2,
@@ -48,7 +48,7 @@ export const Af: GraphControlRule = {
         },
         {
             type: 'slider',
-            key: 'conductProb',
+            key: 'afConductProb',
             label: 'Conduction Probability',
             min: 0.1,
             max: 0.8,
@@ -59,11 +59,11 @@ export const Af: GraphControlRule = {
 };
 
 
-export function updateGraphWithAfCustomArgs(args: Record<string, number>,   graph: GraphEngine) {
+export function updateGraphWith_Af_CustomArgs(args: Record<string, number>,   graph: GraphEngine) {
     console.log("[AfCustom]",args);
-    const f = args.fWaveFreq;
-    const a = args.fWaveAmp;
-    const p = args.conductProb;
+    const f = args.afWaveFreq;
+    const a = args.afWaveAmp;
+    const p = args.afConductProb;
     const delayMs = Math.floor(1000 / (f / 60) / 3) - 5;
     console.log("[AfCustom]", f, a, p, delayMs);
 

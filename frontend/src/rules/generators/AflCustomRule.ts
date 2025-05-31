@@ -18,7 +18,7 @@ export const Afl: GraphControlRule = {
   effects: {
     node: {
       SA: { autofire: false },
-      IA: { forceFiring: true },
+      IA: { forceFiring: true, refractory: 75 },
       CTI2: { forceFiring: true },
       His: { refractory: 150}
     },
@@ -31,7 +31,7 @@ export const Afl: GraphControlRule = {
   uiControls: [
     {
       type: 'slider',
-      key: 'fWaveFreq',
+      key: 'aflWaveFreq',
       label: 'F-wave frequency',
       min: 250,
       max: 350,
@@ -40,7 +40,7 @@ export const Afl: GraphControlRule = {
     },
     {
       type: 'slider',
-      key: 'fWaveAmp',
+      key: 'aflWaveAmp',
       label: 'F-wave amplitude',
       min: 0.0,
       max: 0.2,
@@ -49,7 +49,7 @@ export const Afl: GraphControlRule = {
     },
     {
       type: 'slider',
-      key: 'conductProb',
+      key: 'aflConductProb',
       label: 'AV Conduction Level',
       min: 1,
       max: 10,
@@ -62,9 +62,9 @@ export const Afl: GraphControlRule = {
 
 
 export function updateGraphWithAflCustomArgs(args: Record<string, number>, graph: GraphEngine) {
-  const f = args.fWaveFreq;
-  const a = args.fWaveAmp;
-  const p = args.conductProb;
+  const f = args.aflWaveFreq;
+  const a = args.aflWaveAmp;
+  const p = args.aflConductProb;
   const delayMs = Math.floor(1000 / (f / 60) / 5) ;
   console.log("[AflCustom]", f, a, p, delayMs);
 
@@ -75,6 +75,6 @@ export function updateGraphWithAflCustomArgs(args: Record<string, number>, graph
   graph.getPath('CTI2->IA')?.setAmplitude(a); // apdMs, polarityも値を指定
   graph.getPath('IA->CTI2')?.setAmplitude(a);
 
-  graph.getPath('IA->AN_fast')?.setRefractoryMs(3000/(p+3));
+  graph.getPath('IA->AN_fast')?.setRefractoryMs(3500/(p+2));
   graph.getPath('IA->AN_slow')?.setRefractoryMs(7000/(p+2));
 }

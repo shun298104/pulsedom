@@ -3,7 +3,6 @@ import { Path } from './graphs/Path';
 import { defaultNodes } from './graphs/nodes';
 import { createDefaultPaths } from './graphs/paths';
 import { Node, NodeId } from '../types/NodeTypes';
-import { MAX_DELAY } from '../constants/constants';
 
 export class GraphEngine {
   private debugLevel: 0 | 1 | 2 | 3 = 0;
@@ -65,7 +64,7 @@ export class GraphEngine {
 
   /** デバッグログ */
   private log(level: number, message: string, now: number) {
-    if (this.debugLevel <= 2 && (message.includes('RV') || message.includes('LV')) ) return;
+    if (this.debugLevel <= 2 && (message.includes('LA') || message.includes('LBB') || message.includes('RV') || message.includes('LV') || message.includes('BM') || message.includes('AN')) ) return;
     if (this.debugLevel >= level) {
       console.log(`[${Math.round(now)}] ${message}`);
     }
@@ -119,12 +118,13 @@ export class GraphEngine {
       }
 
       // 伝導遅延を考慮して発火時間を計算
-      const fireAt = now + path.getDelay();
+      const fireAt = now + path.getCurrentDelayMs();
       // pathの不応期を設定（delay後にfireされるため）
       path.absoluteRefractoryUntil = now + path.refractoryMs;
 
-      const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id && f.fireAt === fireAt);
+      const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id);
       if (alreadyScheduled) continue;
+      this.log(1, `📨 Scheduling ${path.id}: now=${now.toFixed(0)} → fireAt=${fireAt.toFixed(0)} (delay=${((fireAt-now).toFixed(0))})`, now);
 
       this.scheduledFires.push({ target: path.to, via: path.id, fireAt });
       this.log(2, `  📨 (${path.id}) scheduled at ${Math.round(fireAt)}, but NOT fired yet.`, now);
@@ -134,6 +134,7 @@ export class GraphEngine {
 
   /** メインのtickループ */
   tick(now: number): string[] {
+    
     if (this.scheduledFires.length > 0) this.log(3, `[TICK] scheduledFires: ${JSON.stringify(this.scheduledFires)}`, now);
     const firingEvents: string[] = [];
 
@@ -142,21 +143,17 @@ export class GraphEngine {
       if (node.CONFIG?.autoFire || node.CONFIG?.forceFiring) {
         if (node.shouldAutoFire(now)) {
           node.STATE.lastFiredAt = now;
+          node.setNextFiringAt(now); 
           firingEvents.push(node.id);
-          this.log(1, `⚡ ${node.id} Auto firing (${node.bpm}bpm)`, now);
+          this.log(1, `⚡⚡⚡ ${node.id} Auto firing (${node.bpm}bpm) ⚡⚡⚡`, now);
           this.scheduleConduction(node.id, now);
         }
       }
     }
 
-    // 予定された伝導イベント（maxDelay考慮 + earliestMapによる決定性制御）
     const earliestMap: Map<NodeId, typeof this.scheduledFires[number]> = new Map();
 
     for (const sched of this.scheduledFires) {
-      if (sched.fireAt > now + MAX_DELAY) {
-        this.log(1, `${sched.target} was canceled. ${sched.fireAt - now} > MAX_DELAY(${MAX_DELAY})`, now) 
-//        continue;
-      }
       const prev = earliestMap.get(sched.target);
       if (!prev || sched.fireAt < prev.fireAt) {
         earliestMap.set(sched.target, sched);
@@ -167,11 +164,6 @@ export class GraphEngine {
 
     const remaining: typeof this.scheduledFires = [];
     for (const sched of this.scheduledFires) {
-      // 未使用のfutureイベントは保持（maxDelay超過は上で弾かれている）
-      if (sched.fireAt > now + MAX_DELAY) {
-        console.log(`${sched.via} was canceled due to MAX_DELAY. (${(sched.fireAt-now).toFixed(0)} > ${MAX_DELAY}`)
-        continue;
-      }
       if (sched.fireAt > now) {
         remaining.push(sched);
         continue;
@@ -186,17 +178,21 @@ export class GraphEngine {
       const path = this.paths.find(p => p.id === sched.via);
 
       if (!targetNode) {
-        this.log(2, "targetNode dose NOT exist.", now);
+        this.log(0, `🤬[WTF] scheduledFires.target=${sched.target} not found in nodes`, now);
         continue;
       }
       if (!targetNode.isRefractory(now)) {
         this.log(1, `🔥 ${targetNode.id} Scheduled firing via (${sched.via}). `, sched.fireAt);
         targetNode.STATE.lastFiredAt = sched.fireAt;
+        targetNode.setNextFiringAt(sched.fireAt);
         firingEvents.push(targetNode.id);
         this.log(3, `[TICK] 🔥 Firing target=${sched.target} via=${sched.via}`, now);
 
         if (path) {
-          path.lastConductedAt = sched.fireAt - path.delayMs;
+          this.log(1, `✅[Path Conducted] ${path.id} : fireAt=${sched.fireAt.toFixed(0)}`, now)
+          path.conduct(sched.fireAt);
+          this.log(1, `  [Path Conducted] ${path.id} :  lastConductedAt=${path.lastConductedAt.toFixed(0)}`, now);
+
           firingEvents.push(path.id);
           this.log(2, `    ${path.id}.lastConductedAt = ${Math.round(path.lastConductedAt)}: `, now);
           this.log(3, `[TICK] path.absoluteRefractoryUntil: ${path.absoluteRefractoryUntil}`, now);

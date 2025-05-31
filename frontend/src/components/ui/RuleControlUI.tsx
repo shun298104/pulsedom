@@ -119,7 +119,7 @@ const RuleControlUI: React.FC<RuleControlUIProps> = ({ controls, values, onChang
             return (
               <div key={ctrl.key} className="flex flex-col">
                 <div>{wrapWithTooltip(ctrl.label, ctrl.tooltip)}</div>
-                <div className="flex gap-3">
+                <div className="flex gap-1 flex-wrap">
                   {ctrl.options.map(opt => (
                     <label key={opt.value} className="flex items-center gap-1">
                       <input
@@ -127,18 +127,12 @@ const RuleControlUI: React.FC<RuleControlUIProps> = ({ controls, values, onChang
                         name={ctrl.key}
                         value={opt.value}
                         checked={values[ctrl.key] === opt.value}
-                        onChange={() => onChange(ctrl.key, opt.value)}
+                        onChange={() => { onChange(ctrl.key, opt.value); }}
                       />
                       {opt.label}
                     </label>
                   ))}
                 </div>
-              </div>
-            );
-          default:
-            return (
-              <div className="text-red-500" key={ctrl.key}>
-                Unknown UI control type: {(ctrl as any).type}
               </div>
             );
         }

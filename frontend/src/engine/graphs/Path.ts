@@ -40,6 +40,11 @@ export class Path {
   polarity: number;
   priority?: number;  // 🆕 優先度（小さいほど高優先度）
 
+  //2nd block
+  decrementalStep: number;
+  decrementalMs: number;
+  wenckebachPhenomenon: boolean
+
   lastConductedAt = -1000;
   delayJitterMs?: number;
   apdMs: number;
@@ -60,8 +65,10 @@ export class Path {
     this.blocked = props.blocked ?? false;
     this.reversePathId = props.reversePathId ?? null;
     this.polarity = props.polarity ?? 0.1;
-    this.priority = props.priority ?? 1;   // 🆕 優先度（小さいほど高優先度）
-
+    this.priority = props.priority ?? 1;
+    this.decrementalStep = 0;
+    this.decrementalMs = 0;
+    this.wenckebachPhenomenon = false;
 
     this.delayJitterMs = props.delayJitterMs;
     this.apdMs = props.apdMs;
@@ -136,14 +143,41 @@ export class Path {
       const threshold = this.reversePath.refractoryMs * (this.reversePath.lastConductedAt > this.lastConductedAt ? 1.5 : 1.0);
       if (sinceReverse < threshold) return false;
     }
+
+    if (this.decrementalStep) {
+      if (now - this.lastConductedAt - this.decrementalMs * 3 < this.refractoryMs) {
+        console.log(`>>Path ${this.id} conduction blocked by Fatigue. ${this.decrementalMs}`)
+        this.decrementalMs = 0;
+        return false;
+      }
+    }
     return true;
+  }
+
+  getCurrentDelayMs(): number {
+    if (this.wenckebachPhenomenon) {
+      console.log(`[path.ts] ${this.id} has wenckenbach phenomenon. decMs is ${this.decrementalMs}.`)
+      return this.delayMs + this.decrementalMs
+    } else {
+      return this.delayMs;
+    }
+  }
+
+  conduct(fireAt: number) {
+    const delay = this.getCurrentDelayMs();
+    this.lastConductedAt = fireAt - delay;
+
+    if (this.decrementalStep) {
+      this.decrementalMs = (this.decrementalMs ?? 0) + this.decrementalStep;
+    }
   }
 
   /** conduction delay with optional jitter */
   getDelay(): number {
     if (this.delayJitterMs === undefined) return this.delayMs;
     const jitter = (Math.random() * 2 - 1) * this.delayJitterMs; // ±jitter
-    return Math.max(0, this.delayMs + jitter);
+    const totalDelay = this.delayMs + jitter + this.decrementalMs
+    return Math.max(0, totalDelay);
   }
 
   /** DotFactorの取得 */
@@ -154,7 +188,7 @@ export class Path {
   /** ベース波形計算 */
   public getBaseWave(t: number, rr: number): number {
     if (!this.computeBaseWave) {
-      console.error(`computeBaseWave is not defined for Path ${this.id}`);
+      console.error(`[WRF] computeBaseWave is not defined for Path ${this.id}`);
       return 0;
     }
     return this.computeBaseWave(t, rr);
@@ -163,17 +197,12 @@ export class Path {
   /** 電位計算（全リード一括） */
   public getVoltages(now: number, rr: number): Record<LeadName, number> {
     const baseWave = this.getBaseWave(now, rr);
-    console.log('Base Wave:', this.id, baseWave); // デバッグ用
     const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
 
     for (const lead in this.dotFactors) {
       voltages[lead as LeadName] = baseWave * this.dotFactors[lead as LeadName];
     }
     return voltages;
-  }
-
-  isVentricular(): boolean {
-    return this.to === 'V';
   }
 
   getId(): string {
@@ -199,6 +228,9 @@ export class Path {
   }
   setAmplitude(amplitude: number) {
     this.amplitude = amplitude;
+  }
+  setDecrementalStep(decStep: number){
+    this.decrementalStep = decStep;
   }
 }
 

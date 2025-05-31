@@ -15,7 +15,7 @@ export function updateGraphEngineFromSim(sim: SimOptions,  graph: GraphEngine) {
 
   const statuses = sim.statuses;
   console.log('[GC] statuses', statuses);
-  // 対象となるルールを抽出
+
   const activeRules = graphControlRules.filter(rule => statuses.includes(rule.id));
 
   for (const rule of activeRules) {
@@ -26,6 +26,8 @@ export function updateGraphEngineFromSim(sim: SimOptions,  graph: GraphEngine) {
         const node = nodes[nodeId];
         if (!node) continue;
         if (!effect) continue;
+        
+        if (effect.refractory !== undefined) { node.primaryRefractoryMs = effect.refractory; }
 
         if (effect.autofire !== undefined) { node.CONFIG.autoFire = effect.autofire; }
         if (effect.forceFiring !== undefined) { node.CONFIG.forceFiring = effect.forceFiring; }
@@ -50,6 +52,8 @@ export function updateGraphEngineFromSim(sim: SimOptions,  graph: GraphEngine) {
         if (effect.delayJitterMs !== undefined) path.delayJitterMs = effect.delayJitterMs;
         if (effect.apdMs !== undefined) path.apdMs = effect.apdMs;
         if (effect.amplitude !== undefined) path.amplitude = effect.amplitude;
+        if (effect.decrementalStep !== undefined) path.decrementalStep = effect.decrementalStep
+        if (effect.wenckebachPhenomenon !== undefined) path.wenckebachPhenomenon = effect.wenckebachPhenomenon
 
         // ほかのプロパティは必要に応じて追加
       }

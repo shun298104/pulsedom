@@ -19,13 +19,15 @@ export type NodeId =
 
 export interface NodeConfig {
   autoFire: boolean;
+  forceFiring: boolean;
+  refractoryMs: number | undefined;
   ectopic_enabled: boolean;
   ectopic_probability: number;
   ectopic_bpmFactor: number;
   burst_enabled: boolean;
   burst_maxCount: number;
-  burst_intervalMs: number;
-  forceFiring: boolean;
+  burst_intervalMs: number | undefined;
+  jitterMs: number;
 }
 
 export interface NodeState {
@@ -33,6 +35,7 @@ export interface NodeState {
   ectopic_nextFireAt?: number;
   burst_counter: number;
   lastFiredAt: number;
+  nextFiringAt: number;
 }
 
 export interface Node {
@@ -49,6 +52,7 @@ export interface Node {
   getRefractoryMs: () => number;
   shouldAutoFire: (now: number, dynamicHR?: number) => boolean;
   isRefractory: (now: number) => boolean;
+  setNextFiringAt: (now: number) => void;
 
   CONFIG: NodeConfig;
   STATE: NodeState;

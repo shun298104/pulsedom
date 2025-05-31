@@ -20,9 +20,10 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const encoded = params.get("sim");
     const restored = encoded ? decodeSimOptionsFromURL(encoded) : null;
+
     return restored ?? new SimOptions(createDefaultSimOptions());
   });
-
+  simOptions.setStatus('sinus_staus','SAB2');
   const simOptionsRef = useRef(simOptions);
   const graphRef = useRef<GraphEngine | null>(null);
   const [hr, setHr] = useState(-1);
@@ -36,7 +37,7 @@ function App() {
   //アラームコントロール
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
   const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef);
-const handleStopAlarm = () => stopAlarm(alarmAudioRef.current, alarmLevel);
+  const handleStopAlarm = () => stopAlarm(alarmAudioRef.current, alarmLevel);
 
   // バッファの初期化
   const bufferKeys = [
@@ -77,7 +78,7 @@ const handleStopAlarm = () => stopAlarm(alarmAudioRef.current, alarmLevel);
 
     rhythmEngine.setOnHrUpdate(setHr);
 
-    if (graphRef.current) graphRef.current.setDebugLevel(2, 5_000);
+    if (graphRef.current) graphRef.current.setDebugLevel(1, 6_000);
 
     let animationId: number;
     const loop = (now: number) => {

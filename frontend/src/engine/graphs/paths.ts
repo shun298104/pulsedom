@@ -3,24 +3,24 @@ import type { PathProps } from './Path';
 export function createDefaultPaths(): PathProps[] {
   return [
     // --- 正方向（順行P波 + AV伝導 + 心室）---
-    { id: 'SA->CT', from: 'SA', to: 'CT', delayMs: 10, refractoryMs: 250, amplitude: 0.00, apdMs: 100 },
+    { id: 'SA->CT', from: 'SA', to: 'CT', delayMs: 20, refractoryMs: 250, amplitude: 0.00, apdMs: 100 },
     { id: 'CT->A',  from: 'CT', to: 'A',  delayMs:  5, refractoryMs: 250, amplitude: 0.03, apdMs: 100 },
 
-    { id: 'A->IA',       from: 'A', to: 'IA', delayMs: 48, delayJitterMs: 4, refractoryMs: 250, amplitude: 0.15, polarity: 0.1, apdMs: 100, reversePathId: 'A->IA_retro' , blocked: false },
-    { id: 'A->IA_retro', from: 'IA', to: 'A', delayMs: 50, delayJitterMs: 0, refractoryMs: 250, amplitude: 0.11, polarity: 0.1, apdMs: 100, reversePathId: 'A->IA', blocked: false },
+    { id: 'A->IA',       from: 'A', to: 'IA', delayMs: 55, delayJitterMs: 4, refractoryMs: 250, amplitude: 0.15, polarity: 0.1, apdMs: 100, reversePathId: 'A->IA_retro' , blocked: false },
+    { id: 'A->IA_retro', from: 'IA', to: 'A', delayMs: 60, delayJitterMs: 0, refractoryMs: 250, amplitude: 0.11, polarity: 0.1, apdMs: 100, reversePathId: 'A->IA', blocked: false },
 
     { id: 'IA->AN_fast',       from: 'IA', to: 'AN', delayMs: 15, refractoryMs: 250, amplitude: 0.03, polarity: 0, apdMs: 100, conductionProbability: 1, reversePathId: 'IA->AN_fast_retro' },
     { id: 'IA->AN_fast_retro', from: 'AN', to: 'IA', delayMs: 25, refractoryMs: 275, amplitude: 0.02, polarity: 0, apdMs: 100, reversePathId: 'IA->AN_fast' },
 
     // 正向き: IA -> AN_slow
-    { id: 'IA->AN_slow_retro_3', from: 'AN',   to: 'IAX2', delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_3' },
-    { id: 'IA->AN_slow_retro_2', from: 'IAX2', to: 'IAX1', delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_2' },
-    { id: 'IA->AN_slow_retro_1', from: 'IAX1', to: 'IA',   delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_1' },
+    { id: 'IA->AN_slow_retro_3', from: 'AN',   to: 'IAX2', delayMs: 40, refractoryMs: 50, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_3' },
+    { id: 'IA->AN_slow_retro_2', from: 'IAX2', to: 'IAX1', delayMs: 40, refractoryMs: 50, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_2' },
+    { id: 'IA->AN_slow_retro_1', from: 'IAX1', to: 'IA',   delayMs: 40, refractoryMs: 250, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_1' },
 
     // 逆向き: AN -> IA (retro)
-    { id: 'IA->AN_slow_retro_3', from: 'AN',   to: 'IAX2', delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_3' },
-    { id: 'IA->AN_slow_retro_2', from: 'IAX2', to: 'IAX1', delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_2' },
-    { id: 'IA->AN_slow_retro_1', from: 'IAX1', to: 'IA',   delayMs: 40, refractoryMs: 300, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_1' },
+    { id: 'IA->AN_slow_retro_3', from: 'AN',   to: 'IAX2', delayMs: 40, refractoryMs: 50, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_3' },
+    { id: 'IA->AN_slow_retro_2', from: 'IAX2', to: 'IAX1', delayMs: 40, refractoryMs: 50, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_2' },
+    { id: 'IA->AN_slow_retro_1', from: 'IAX1', to: 'IA',   delayMs: 40, refractoryMs: 250, amplitude: 0.00, apdMs: 100, reversePathId: 'IA->AN_slow_1' },
 
     // --- 心房末端 + LA経由 ---
     { id: 'A->BM',  from: 'A',  to: 'BM', delayMs: 20, delayJitterMs: 0, refractoryMs: 250, amplitude: 0.01, polarity: 0, apdMs: 100, blocked: false },
@@ -42,8 +42,8 @@ export function createDefaultPaths(): PathProps[] {
     // --- AFL loop ---
     { id: 'IA->CTI1',   from: 'IA',   to: 'CTI1', delayMs: 45, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.3, apdMs: 30, blocked: true,  polarity: 0 },
     { id: 'CTI1->CTI2', from: 'CTI1', to: 'CTI2', delayMs: 45, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.2, apdMs: 30, blocked: false, polarity: 0 },
-    { id: 'CTI2->CTI3', from: 'CTI2', to: 'CTI3', delayMs: 40, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.1, apdMs: 30, blocked: false, polarity: 0 },
-    { id: 'CTI3->IA',   from: 'CTI3', to: 'IA',   delayMs: 40, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.2, apdMs: 30, blocked: false, polarity: 0 },
+    { id: 'CTI2->CTI3', from: 'CTI2', to: 'CTI3', delayMs: 45, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.1, apdMs: 30, blocked: false, polarity: 0 },
+    { id: 'CTI3->IA',   from: 'CTI3', to: 'IA',   delayMs: 45, delayJitterMs: 5, refractoryMs: 60, amplitude: 0.2, apdMs: 30, blocked: false, polarity: 0 },
 
     //房室伝導
     { id: 'AN->N',   from: 'AN', to: 'N',   delayMs:  5, refractoryMs: 200, amplitude: 0.00, apdMs: 100, reversePathId: 'AN->N_retro', blocked: false },

@@ -1,6 +1,7 @@
 // src/types/SimOptions.ts
 import { NodeId } from '../types/NodeTypes';
 import { ruleMap } from '../rules/graphControlRuleList';
+import { graphControlRules, getDefaultOptionsFromRules } from '../rules/graphControlRuleList';
 
 export type RawSimOptions = {
   //  statuses: string[];
@@ -57,19 +58,17 @@ export class SimOptions {
   }
 
   setExtendedOption(status: string, key: string, value: string | number) {
-    if (typeof value === 'number') {
-      const fullKey = `${status.toLowerCase()}.${key}`;
-      this.setOption(fullKey, value);
-    }
+    const fullKey = `${status.toLowerCase()}.${key}`; // ✅ prefixだけ小文字
+    this.setOption(fullKey, value);
   }
 
   getOptionsForStatus(status: string): Record<string, string | number> {
     const result: Record<string, string | number> = {};
     if (!this.rawData.options) return result;
 
-    const prefix = status.toLowerCase() + "."; // 例: "af." や "pvc."
+    const prefix = status.toLowerCase() + ".";
     for (const [key, val] of Object.entries(this.rawData.options)) {
-      if (key.startsWith(prefix)) {
+      if (key.toLowerCase().startsWith(prefix)) {
         result[key.slice(prefix.length)] = val;
       }
     }
@@ -108,12 +107,12 @@ export class SimOptions {
   public getStatus(group: string): string | undefined {
     return this.status[group];
   }
+  get statuses(): string[] {
+    return Object.values(this.status).filter((s): s is string => !!s);
+  }
 
   get hr() { return this.rawData.hr; }
   set hr(val: number) { this.rawData.hr = val; }
-
-  get rr() { return this.rawData.rr; }
-  set rr(val: number) { this.rawData.rr = val; }
 
   get spo2(): number { return this.rawData.spo2 ?? 98; }
   set spo2(val: number) { this.rawData.spo2 = val; }
@@ -133,16 +132,6 @@ export class SimOptions {
   get ventricleRate() { return this.rawData.ventricle_rate; }
   set ventricleRate(val: number) { this.rawData.ventricle_rate = val; }
 
-  get pacing() { return this.rawData.pacing; }
-
-  getRate(nodeId: NodeId): number {
-    switch (nodeId) {
-      case 'SA': return this.rawData.sinus_rate;
-      case 'NH': return this.rawData.junction_rate;
-      case 'V': return this.rawData.ventricle_rate;
-      default: return 0;
-    }
-  }
   set sinus_status(val: string | undefined) { this.rawData.sinus_status = val; }
   set junction_status(val: string | undefined) { this.rawData.junction_status = val; }
   set ventricle_status(val: string | undefined) { this.rawData.ventricle_status = val; }
@@ -153,14 +142,11 @@ export class SimOptions {
   get ventricle_status(): string | undefined { return this.rawData.ventricle_status; }
   get conduction_status(): string | undefined { return this.rawData.conduction_status; }
 
-  get statuses(): string[] {
-    return Object.values(this.status).filter((s): s is string => !!s);
-  }
 }
 
 export function createDefaultSimOptions(): SimOptions {
+  const defaultOptions = getDefaultOptionsFromRules(graphControlRules);
   return new SimOptions({
-    statuses: ["NSR"],
     hr: 80,
     rr: 750,
     spo2: 98,
@@ -170,14 +156,7 @@ export function createDefaultSimOptions(): SimOptions {
     junction_rate: 40,
     ventricle_rate: 30,
 
-    options: {
-      "af.fWaveFreq": 400,
-      "af.fWaveAmp": 0.04,
-      "af.conductProb": 0.5,
-      "afl.fWaveFreq": 300,
-      "afl.fWaveAmp": 0.04,
-      "afl.conductProb": 5,
-    },
+    options: defaultOptions,
 
     pacing: {
       mode: 'OFF',

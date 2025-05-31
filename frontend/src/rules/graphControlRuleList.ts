@@ -2,11 +2,11 @@
 import type { GraphControlRule } from './GraphControlTypes';
 import { Af } from './generators/AfCustomRule';
 import { Afl } from './generators/AflCustomRule';
-import { CAVB, normalConduction } from './generators/AVbkocksCustomRule';
+import { CAVB, normalConduction, WBBlock, M2Block, firstAVB } from './generators/AVConductionCustomRule';
 import { PACs } from './generators/PACsCustomRule'
+import { SAB2 } from './generators/SSSCustomRule'
 
 export const graphControlRules: GraphControlRule[] = [
-
   {
     id: 'NSR',
     label: 'Normal Sinus Rhythm',
@@ -16,7 +16,9 @@ export const graphControlRules: GraphControlRule[] = [
     effects: {
       node: {
         SA: { autofire: true },
-      His: { refractory: 275}
+        His: { refractory: 275 },
+        IA: { refractory: 150 }
+
       },
       path: {
         'A->IA': { block: false, },
@@ -33,11 +35,6 @@ export const graphControlRules: GraphControlRule[] = [
       }
     }
   },
-  Af,
-  Afl,
-  PACs,
-  normalConduction,
-  CAVB,
   {
     id: 'Arrest',
     label: 'Sinus Arrest',
@@ -50,6 +47,36 @@ export const graphControlRules: GraphControlRule[] = [
       },
     },
   },
+  Af,
+  Afl,
+  SAB2,
+  PACs,
+  normalConduction,
+  firstAVB,
+  WBBlock,
+  M2Block,
+  CAVB,
+  {
+    id: 'junc_Normal',
+    label: 'Junction Normal Status',
+    group: 'junction_status',
+    exclusiveGroup: 'AVstatus',
+    description: 'Normal Juncational Status',
+    effects: {
+      node: {
+        AN: { refractory: 250 },
+        LA: { refractory: 75, },
+
+      },
+      path: {
+        'A->IA': { block: false },
+        'IA->AN_fast': { refractoryMs: 250, block: false },
+        'IA->AN_slow_1': { refractoryMs: 40 },
+        'IA->AN_fast_retro': { refractoryMs: 275 },
+        'IA->AN_slow_retro_1': { refractoryMs: 250, block: false },
+      }
+    }
+  },
   {
     id: 'AVNRT',
     label: 'AVNRT',
@@ -58,44 +85,16 @@ export const graphControlRules: GraphControlRule[] = [
     description: 'AV node Re-entry Tachycardia',
     effects: {
       node: {
-        AN: { forceFiring: true,refractory: 100 },
+        AN: { forceFiring: true, refractory: 100 },
         LA: { refractory: 150, },
 
       },
       path: {
-        'A->IA': {block: true},
+        'A->IA': { block: true },
         'IA->AN_fast': { refractoryMs: 100, block: true },
-        'IA->AN_slow': { refractoryMs: 40 },
+        'IA->AN_slow_1': { refractoryMs: 40 },
         'IA->AN_fast_retro': { refractoryMs: 20 },
-        'IA->AN_slow_retro': { refractoryMs: 100, block: true },
-      }
-    }
-  },
-  {
-    id: 'RESET',
-    label: 'rest all nodes and paths',
-    group: 'demo',
-    //    group: 'JunctionStatus',
-    exclusiveGroup: 'none',
-    description: 'AV node Reentry Tachycardia',
-    effects: {
-      node: {
-        SA: { autofire: true },
-        CTI2: { autofire: true }
-      },
-      path: {
-        'IA->AN_fast': { refractoryMs: 250, probability: 1.0 },
-        'IA->AN_slow': { refractoryMs: 250, probability: 1.0 },
-        'IA->AN_fast_retro': { refractoryMs: 300 },
-        'IA->AN_slow_retro': { refractoryMs: 300 },
-        'A->IA': { block: false, },
-        'IA->A': { block: false, },
-        'LA->PV1': { block: true, },
-        'PV1->PV2': { block: true, },
-        'PV2->LA': { block: true, },
-        'LA->IA': { block: true, },
-        'IA->CTI2': { block: true, },
-        'CTI2->IA': { block: true, },
+        'IA->AN_slow_retro_1': { refractoryMs: 100, block: true },
       }
     }
   },
@@ -104,3 +103,22 @@ export const graphControlRules: GraphControlRule[] = [
 export const ruleMap = Object.fromEntries(
   graphControlRules.map(rule => [rule.id, rule])
 );
+
+
+export function getDefaultOptionsFromRules(rules: GraphControlRule[]): Record<string, number> {
+  const options: Record<string, number> = {};
+
+  for (const rule of rules) {
+    if (!rule.uiControls) continue;
+
+    for (const ctrl of rule.uiControls) {
+      const { key, defaultValue } = ctrl;
+
+      if (typeof defaultValue === 'number') {
+        const prefixedKey = `${rule.id}.${key}`;
+        options[prefixedKey] = defaultValue;
+      }
+    }
+  }
+  return options;
+}

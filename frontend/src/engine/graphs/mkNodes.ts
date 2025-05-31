@@ -10,56 +10,72 @@ export const mkNode = (
   y: number,
   z: number,
   config: Partial<NodeConfig> = {}
-): Node => ({
-  id,
-  bpm,
-  primaryRefractoryMs: refMs,
-  x,
-  y,
-  z,
+): Node => {
+  const interval = 60000 / bpm - 500;
+  const nextFiringAt = config.autoFire ? interval : Infinity;
 
-  // CONFIGの初期化
-  CONFIG: {
-    autoFire: false,
-    ectopic_enabled: false,
-    ectopic_probability: 0.0,
-    ectopic_bpmFactor: 1.0,
-    burst_enabled: false,
-    burst_maxCount: 0,
-    burst_intervalMs: 0,
-    forceFiring: false,
-    ...config,
-  },
+  return {
+    id,
+    bpm,
+    primaryRefractoryMs: refMs,
+    x,
+    y,
+    z,
 
-  // 内部状態の初期化
-  STATE: {
-    lastFiredAt: -1000,
-    burst_counter: 0,
-  },
+    // CONFIGの初期化
+    CONFIG: {
+      autoFire: false,
+      forceFiring: false,
+      refractoryMs: undefined,
+      ectopic_enabled: false,
+      ectopic_probability: 0.0,
+      ectopic_bpmFactor: 1.0,
+      burst_enabled: false,
+      burst_maxCount: 0,
+      burst_intervalMs: 0,
+      jitterMs: 0,
+      ...config,
 
-  // 設定適用メソッド
-  setConfig(newConfig: Partial<NodeConfig>) {
-    Object.assign(this.CONFIG, newConfig);
-  },
+    },
 
-  getRefractoryMs() {
-    return this.adaptiveRefractoryMs ?? this.primaryRefractoryMs;
-  },
+    // 内部状態の初期化
+    STATE: {
+      lastFiredAt: -1000,
+      nextFiringAt,
+      burst_counter: 0,
+    },
 
-  shouldAutoFire(now) {
-    if (this.CONFIG.forceFiring && !this.isRefractory(now)) {
-      this.CONFIG.forceFiring = false;
-      return true;
+    // 設定適用メソッド
+    setConfig(newConfig: Partial<NodeConfig>) {
+      Object.assign(this.CONFIG, newConfig);
+    },
+
+    getRefractoryMs() {
+      return this.adaptiveRefractoryMs ?? this.CONFIG.refractoryMs ?? this.primaryRefractoryMs;
+    },
+
+    shouldAutoFire(now) {
+
+      if (this.CONFIG.forceFiring && !this.isRefractory(now)) {
+        this.CONFIG.forceFiring = false;
+        return true;
+      }
+
+      if (this.CONFIG.autoFire && now >= this.STATE.nextFiringAt) {
+        return true;
+      }
+
+      return false;
+    },
+
+    setNextFiringAt(now: number) {
+      if (!this.CONFIG.autoFire) return;
+      this.STATE.nextFiringAt = now + 60000 / this.bpm + (Math.random() - 0.5 ) * this.CONFIG.jitterMs
+//      console.log(`🎯 [${now.toFixed(0)}] ${this.id} set to nextFiringAt: ${this.STATE.nextFiringAt}`);
+    },
+
+    isRefractory(now) {
+      return now - this.STATE.lastFiredAt < this.getRefractoryMs();
     }
-    if (this.CONFIG.autoFire) {
-      const interval = 60000 / this.bpm;
-      return now - this.STATE.lastFiredAt >= interval;
-    }
-
-    return false;
-  },
-
-  isRefractory(now) {
-    return now - this.STATE.lastFiredAt < this.getRefractoryMs();
   }
-});
+};

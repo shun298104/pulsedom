@@ -3,8 +3,8 @@ import { Node } from '../../types/NodeTypes'; // Assuming mkNode and Node types 
 
 export const defaultNodes: Node[] = [
   // --- Main Conduction System & Atria ---
-  mkNode('SA',  80, 200, -6.0, -3.0, -2.0,  { autoFire: true }), // Sinoatrial Node: Right, Superior, Posterior
-  mkNode('CT',   0, 200, -4.0, -3.0, -1.0),                     // Crista Terminalis area: Right, Superior, sl. Posterior
+  mkNode('SA',  80, 200, -6.0, -3.0, -2.0,  { autoFire: true, jitterMs: 10 }), // Sinoatrial Node: Right, Superior, Posterior
+  mkNode('CT',   33, 200, -4.0, -3.0, -1.0,  { autoFire: false }),                     // Crista Terminalis area: Right, Superior, sl. Posterior
 
   mkNode('A',    0, 200,  0.0, -3.0,  0.0),                     // General Atrial (Right Atrium): Right, Superior
   mkNode('IAX1', 0, 150,  0.0, -2.5, -1.5),

@@ -37,7 +37,7 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-1 flex flex-wrap gap-1 border-t pt-2">
         <Tooltip.Provider>
           {statuses.map((status) => {
             const rule = ruleMap[status];
@@ -46,8 +46,8 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={() => handleClick(status)}
-                    className={`px-3 py-1 rounded border text-xs font-medium tracking-wide transition ${current === status
-                        ? 'bg-zinc-300 text-green-700 border-zinc-400'
+                    className={`px-2 py-1 rounded border text-xs font-medium tracking-wide transition ${current === status
+                        ? 'bg-zinc-300 text-teal-700 border-zinc-400'
                         : 'hover:bg-zinc-200 border-zinc-400'
                       }`}
                   >
@@ -74,6 +74,7 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
           values={simOptions.getOptionsForStatus(extendedKey)}
           onChange={(key, value) => {
             const next = simOptions.clone();
+            console.log("[uicontrol]",next,extendedKey, key, value)
             next.setExtendedOption(extendedKey, key, value);
             handleSimOptionsChange(next);
           }}

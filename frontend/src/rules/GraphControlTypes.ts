@@ -46,6 +46,9 @@ export type PathEffect = Partial<{
   apdMs: number;
   amplitude: number;
   probability: number;
+  decrementalStep: number;
+  decrementalMs: number;
+  wenckebachPhenomenon: boolean;
 }>;
 
 // ==========================
