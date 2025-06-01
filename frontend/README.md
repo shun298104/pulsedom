@@ -116,7 +116,7 @@ frontend/
 ├─ constants
 ├─ engine
 │  ├─ graphs
-│  └─ waveforms
+│  └─ generators
 ├─ hooks
 ├─ lib
 ├─ rules
@@ -132,7 +132,7 @@ frontend/
 PulseDom is not a certified medical device.  It is provided solely for education, research, and entertainment.  Do not use it for clinical decision‑making.
 License: MIT (internal draft – may change before any public release).
 
-## 付録：やりたいことリスト
+## 付録1：やりたいことリスト
 
 ### A) MVP公開までにやること
 
@@ -162,3 +162,11 @@ License: MIT (internal draft – may change before any public release).
 ### E) 思い付き
 
 * PVCのT波幅調整（sigma制御）
+
+
+### 付録2：📌 Git / deploy作業を行う際は、以下を厳守すること：
+
+1. `README.md` に記載されたディレクトリマップを**唯一の事実として採用**
+2. `pulsedom/` をプロジェクトのGitルートとし、`frontend/` はその配下とする
+3. `git push` や `gh-pages` deploy の前に、`git status` に `/frontend/...` のファイルが含まれていることを**目視で確認**
+4. 「ルートはここで合ってる？」と不安なときは**絶対に自己判断で進めず、確認依頼する**

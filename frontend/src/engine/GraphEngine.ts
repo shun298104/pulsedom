@@ -3,11 +3,16 @@ import { Path } from './graphs/Path';
 import { defaultNodes } from './graphs/nodes';
 import { createDefaultPaths } from './graphs/paths';
 import { Node, NodeId } from '../types/NodeTypes';
+import type { PathProps } from './graphs/Path';
 
 export class GraphEngine {
   private debugLevel: 0 | 1 | 2 | 3 = 0;
   private debugResetTimer: number | null = null;
-  private paths: Path[];
+  // pathMapをid直アクセス用に
+  private pathMap: Record<string, Path> = {} as Record<string, Path>;
+  // fromノード起点キャッシュ
+  private fromNodesCache: Record<NodeId, Path[]> = {} as Record<NodeId, Path[]>;
+  // toノード起点キャッシュ（既存）
   private toNodesCache: Record<NodeId, Path[]> = {} as Record<NodeId, Path[]>;
 
   private reversePathIndex = new Map<Path, Path>();
@@ -15,38 +20,45 @@ export class GraphEngine {
 
   public nodes: Record<string, Node>;
 
-  constructor(nodes: Node[], pathsRaw: Path[], debugLevel: 0 | 1 | 2 | 3 = 0) {
+  constructor(nodes: Node[], pathsRaw: PathProps[], debugLevel: 0 | 1 | 2 | 3 = 0) {
     this.debugLevel = debugLevel;
     this.nodes = Object.fromEntries(new Map(nodes.map(node => [node.id, node]))) as Record<NodeId, Node>;
-    this.paths = pathsRaw.map(p => new Path(p, this.nodes, pathsRaw));
-
-    this.buildPathCacheAndLinks();
+    const pathInstances = pathsRaw.map(p => new Path(p, this.nodes));
+    this.buildPathCacheAndLinks(pathInstances);
   }
 
+  // O(1)全パス取得
   public getPaths(): Path[] {
-    return this.paths;
+    return Object.values(this.pathMap);
   }
+  // O(1)id直取得
   public getPath(pathId: string): Path | undefined {
-    return this.paths.find(p => p.id === pathId);
+    return this.pathMap[pathId];
   }
   public getNode(id: string): Node | undefined {
     return this.nodes[id];
   }
 
   /** ノードキャッシュとリバースリンクを構築 */
-  private buildPathCacheAndLinks() {
-    const pathMap = new Map<string, Path>();
+  private buildPathCacheAndLinks(paths: Path[]) {
+    const pathMap: Record<string, Path> = {};
 
-    for (const path of this.paths) {
-      // ノードキャッシュの作成
+    for (const path of paths) {
+      // fromノード起点キャッシュ
+      (this.fromNodesCache[path.from] ||= []).push(path);
+      // toノード起点キャッシュ（既存UIの互換のため残す）
       (this.toNodesCache[path.from] ||= []).push(path);
 
-      // パスのIDをMapに追加
-      pathMap.set(path.id, path);
+      // id直Map
+      pathMap[path.id] = path;
+    }
+    // メンバに反映
+    this.pathMap = pathMap;
 
-      // リバースパスのリンク処理
+    // パスIDでMap構築→reversePathリンク設定
+    for (const path of paths) {
       if (path.reversePathId) {
-        const reversePath = pathMap.get(path.reversePathId);
+        const reversePath = pathMap[path.reversePathId];
         if (reversePath) {
           path.setReversePath(reversePath);
           reversePath.setReversePath(path);
@@ -57,14 +69,18 @@ export class GraphEngine {
     }
   }
 
-  /** ノードからの経路を取得 */
+  /** fromノードから出る経路を取得（O(1)アクセス） */
+  public fromNodes(from: NodeId): Path[] {
+    return this.fromNodesCache[from] || [];
+  }
+  /** toノードから入る経路を取得（既存API互換） */
   public toNodes(from: NodeId): Path[] {
     return this.toNodesCache[from] || [];
   }
 
   /** デバッグログ */
   private log(level: number, message: string, now: number) {
-    if (this.debugLevel <= 2 && (message.includes('LA') || message.includes('LBB') || message.includes('RV') || message.includes('LV') || message.includes('BM') || message.includes('AN')) ) return;
+    if (this.debugLevel <= 2 && (message.includes('LA') || message.includes('LBB') || message.includes('RV') || message.includes('LV') || message.includes('BM') || message.includes('AN'))) return;
     if (this.debugLevel >= level) {
       console.log(`[${Math.round(now)}] ${message}`);
     }
@@ -100,12 +116,12 @@ export class GraphEngine {
 
   /** 経路の最終伝導時間を取得 */
   public getLastConductedAt(pathId: string): number {
-    return this.paths.find(p => p.id === pathId)?.lastConductedAt ?? -1;
+    return this.getPath(pathId)?.lastConductedAt ?? -1;
   }
 
   /** 発火スケジュール */
   private scheduleConduction(from: NodeId, now: number) {
-    const outgoingPaths = this.toNodes(from);
+    const outgoingPaths = this.fromNodes(from);
 
     for (const path of outgoingPaths) {
       if (path.blocked) {
@@ -124,7 +140,7 @@ export class GraphEngine {
 
       const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id);
       if (alreadyScheduled) continue;
-      this.log(1, `📨 Scheduling ${path.id}: now=${now.toFixed(0)} → fireAt=${fireAt.toFixed(0)} (delay=${((fireAt-now).toFixed(0))})`, now);
+      this.log(1, `📨 Scheduling ${path.id}: now=${now.toFixed(0)} → fireAt=${fireAt.toFixed(0)} (delay=${((fireAt - now).toFixed(0))})`, now);
 
       this.scheduledFires.push({ target: path.to, via: path.id, fireAt });
       this.log(2, `  📨 (${path.id}) scheduled at ${Math.round(fireAt)}, but NOT fired yet.`, now);
@@ -134,7 +150,6 @@ export class GraphEngine {
 
   /** メインのtickループ */
   tick(now: number): string[] {
-    
     if (this.scheduledFires.length > 0) this.log(3, `[TICK] scheduledFires: ${JSON.stringify(this.scheduledFires)}`, now);
     const firingEvents: string[] = [];
 
@@ -143,7 +158,7 @@ export class GraphEngine {
       if (node.CONFIG?.autoFire || node.CONFIG?.forceFiring) {
         if (node.shouldAutoFire(now)) {
           node.STATE.lastFiredAt = now;
-          node.setNextFiringAt(now); 
+          node.setNextFiringAt(now);
           firingEvents.push(node.id);
           this.log(1, `⚡⚡⚡ ${node.id} Auto firing (${node.bpm}bpm) ⚡⚡⚡`, now);
           this.scheduleConduction(node.id, now);
@@ -175,7 +190,7 @@ export class GraphEngine {
       this.log(3, `[TICK] selected: ${selected ? selected.via : "none"}`, now);
 
       const targetNode = this.nodes[sched.target];
-      const path = this.paths.find(p => p.id === sched.via);
+      const path = this.getPath(sched.via);
 
       if (!targetNode) {
         this.log(0, `🤬[WTF] scheduledFires.target=${sched.target} not found in nodes`, now);
@@ -198,7 +213,6 @@ export class GraphEngine {
           this.log(3, `[TICK] path.absoluteRefractoryUntil: ${path.absoluteRefractoryUntil}`, now);
         }
 
-        //        this.scheduleConduction(targetNode.id, sched.fireAt);
         this.scheduleConduction(targetNode.id, now);
         this.log(3, `[TICK] targetNode.STATE.lastFiredAt: ${targetNode.STATE.lastFiredAt}`, now);
       } else {
@@ -208,7 +222,6 @@ export class GraphEngine {
 
     this.scheduledFires = remaining;
     return firingEvents;
-
   }
 
   /** リバースパスを取得 */

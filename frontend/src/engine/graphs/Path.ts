@@ -53,7 +53,7 @@ export class Path {
   vector: Vec3;
   dotFactors: Record<LeadName, number>; // 修正
 
-  constructor(props: PathProps, nodeMap: Record<NodeId, Node>, allPaths: Path[]) {
+  constructor(props: PathProps, nodeMap: Record<NodeId, Node>) {
     this.id = props.id;
     this.from = props.from;
     this.to = props.to;
@@ -86,6 +86,7 @@ export class Path {
     // DotFactorの計算とキャッシュ
     this.dotFactors = calculateDotFactors(this, fromNode, toNode);
     this.updateParams(this.delayMs, this.apdMs, this.polarity);
+    
   }
 
   /** パラメータ更新時にベース波形を再定義 */

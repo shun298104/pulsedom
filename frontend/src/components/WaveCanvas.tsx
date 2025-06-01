@@ -2,11 +2,34 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PX_SCALE } from '../constants/constants';
 import { waveMetaMap } from '../constants/waveMetaMap';
+import { leadVectors, LeadName } from '../constants/leadVectors';
 
 interface WaveCanvasProps {
   bufferRef: React.MutableRefObject<Record<string, { getArray: () => number[]; size: () => number }>>;
   signalKey: string;
   label?: string;
+}
+function drawScale(ctx: CanvasRenderingContext2D, size: { width: number, height: number }, gain: number) {
+  // 1mVスケール
+  const scaleX = 10;
+  const scaleHeight = gain * 1;
+  const scaleTop = size.height / 2 - scaleHeight / 2;
+  const scaleBottom = size.height / 2 + scaleHeight / 2;
+
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(scaleX, scaleBottom);
+  ctx.lineTo(scaleX, scaleTop);
+  ctx.lineTo(scaleX + 10, scaleTop);
+  ctx.moveTo(scaleX, scaleBottom);
+  ctx.lineTo(scaleX + 10, scaleBottom);
+  ctx.stroke();
+
+  // スケールラベル
+  ctx.fillStyle = 'white';
+  ctx.font = '12px Arial';
+  ctx.fillText('1 mV', scaleX + 15, scaleTop + 5);
 }
 
 const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
@@ -50,7 +73,7 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       ctx.clearRect(0, 0, size.width, size.height);
       ctx.strokeStyle = strokeStyle;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.beginPath();
 
       for (let i = 0; i < wave.length; i++) {
@@ -62,26 +85,9 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       ctx.stroke();
 
-      // 1mVスケール
-      const scaleX = 10;
-      const scaleHeight = gain * 1;
-      const scaleTop = size.height / 2 - scaleHeight/2;
-      const scaleBottom = size.height / 2 + scaleHeight/2;
-
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(scaleX, scaleBottom);
-      ctx.lineTo(scaleX, scaleTop);
-      ctx.lineTo(scaleX + 10, scaleTop);
-      ctx.moveTo(scaleX, scaleBottom);
-      ctx.lineTo(scaleX + 10, scaleBottom);
-      ctx.stroke();
-
-      // スケールラベル
-      ctx.fillStyle = 'white';
-      ctx.font = '12px Arial';
-      ctx.fillText('1 mV', scaleX + 15, scaleTop + 5);
+      //ECGリードの場合はスケールを表示
+      const isECGLead = (signalKey: string): boolean => signalKey in leadVectors;
+      if (isECGLead(signalKey)) { drawScale(ctx, size, gain); }
 
       requestAnimationFrame(draw);
     };

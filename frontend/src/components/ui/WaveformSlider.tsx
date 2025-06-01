@@ -11,6 +11,7 @@ interface WaveformSliderProps {
   digits?: number;
   onChange: (v: number) => void;
   colorClass?: string;
+
 }
 
 const WaveformSlider: React.FC<WaveformSliderProps> = ({
@@ -43,9 +44,9 @@ const WaveformSlider: React.FC<WaveformSliderProps> = ({
   };
 
   return (
-    <div className="mb-4">
+    <div className="mb-2">
       <div className="flex justify-between items-center">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label className="text-xs font-medium text-gray-700">{label}</label>
         {isEditing ? (
           <input
             type="number"
@@ -59,7 +60,7 @@ const WaveformSlider: React.FC<WaveformSliderProps> = ({
             min={min}
             max={max}
             step={step}
-            className="w-20 text-right border px-1 rounded text-xs [appearance:textfield]"
+            className="w-20 text-right border px-1 rounded text-xs [appearance:textfield]" 
             autoFocus
           />
         ) : (

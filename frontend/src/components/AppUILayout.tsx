@@ -21,7 +21,9 @@ interface AppUILayoutProps {
     setEditorVisible: (v: boolean) => void;
     simOptions: SimOptions;
     isBeepOn: boolean;
+    isAlarmOn: boolean;
     handleBeepToggle: () => void;
+    handleAlarmToggle: () => void;
     stopAlarm: () => void;
     alarmLevel: AlarmLevel;
     alarmMessages: string[];
@@ -36,7 +38,9 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
     setEditorVisible,
     simOptions,
     isBeepOn,
+    isAlarmOn,
     handleBeepToggle,
+    handleAlarmToggle,
     stopAlarm,
     alarmLevel,
     alarmMessages,
@@ -127,7 +131,7 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
                                 <WaveCanvas bufferRef={bufferRef} signalKey="II" label="Lead II" />
                             </div>
                             <div className=" text-sm text-left col-span-2 sm:order-5 sm:col-span-4 md:order-5 xl:col-span-6">
-                                <WaveCanvas bufferRef={bufferRef} signalKey="V5" label="V5" />
+                                <WaveCanvas bufferRef={bufferRef} signalKey="spo2" label="spo2" />
                             </div>
                         </div>
                     )}
@@ -157,7 +161,9 @@ const AppUILayout: React.FC<AppUILayoutProps> = ({
                             simOptions={simOptions}
                             handleSimOptionsChange={handleSimOptionsChange}
                             isBeepOn={isBeepOn}
+                            isAlarmOn={isAlarmOn}
                             onToggleBeep={handleBeepToggle}
+                            onToggleAlarm={handleAlarmToggle}
                         />
                     </div>
                 )}

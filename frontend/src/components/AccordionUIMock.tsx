@@ -1,10 +1,9 @@
 import { SimOptions } from "../types/SimOptions";
-import { ruleMap } from '../rules/graphControlRuleList';
 import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
 
 import WaveformSlider from "./ui/WaveformSlider";
 import StatusButtons from "./ui/StatusButtons";
-import RuleControlUI from './ui/RuleControlUI';
+
 import {
   Accordion,
   AccordionContent,
@@ -16,7 +15,9 @@ interface AccordionUIMockProps {
   simOptions: SimOptions;
   handleSimOptionsChange: (next: SimOptions) => void;
   isBeepOn: boolean;
+  isAlarmOn: boolean;
   onToggleBeep: () => void;
+  onToggleAlarm: () => void;
 }
 
 export function AccordionUIMock({
@@ -24,7 +25,9 @@ export function AccordionUIMock({
   simOptions,
   handleSimOptionsChange,
   isBeepOn,
+  isAlarmOn,
   onToggleBeep,
+  onToggleAlarm,
 
 }: AccordionUIMockProps) {
   // ------- 状態更新関数（SimOptions クラス対応） --------
@@ -51,16 +54,26 @@ export function AccordionUIMock({
     <div className="space-y-2">
       <div className="flex justify-between items-center gap-2 px-1">
         <button
-          className={`text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition ${isBeepOn
+          className={`text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition ${isBeepOn
             ? "bg-zinc-300 text-green-700"
             : "hover:bg-zinc-200"
             }`}
           onClick={onToggleBeep}
         >
-          {isBeepOn ? "🔔 SYNC BEEP ON" : "🔕 SYNC BEEP"}
+          {isBeepOn ? "	🔊 SYNC BEEP ON " : "🔇 SYNC BEEP OFF"}
+        </button>
+        {/* アラームON/OFFボタン */}
+        <button
+          className={`text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition ${isAlarmOn
+            ? "bg-zinc-300 text-green-700"
+            : "hover:bg-zinc-200"
+            }`}
+          onClick={onToggleAlarm}
+        >
+          {isAlarmOn ? "🔔 ALARM ON " : "🔕 ALARM OFF"}
         </button>
         <button
-          className="text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
+          className="hidden text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
           onClick={() => {
             const encoded = encodeSimOptionsToURL(simOptions);
             const url = `${window.location.origin}?sim=${encoded}`;
@@ -88,37 +101,41 @@ export function AccordionUIMock({
         }}
         colorClass="accent-cyan-600"
       />
-      <div className="flex gap-4">
-        <WaveformSlider
-          label="NIBP"
-          value={simOptions.sysBp}
-          min={0}
-          max={250}
-          step={1}
-          digits={0}
-          unit=""
-          onChange={(v: number) => {
-            const next = new SimOptions(simOptions);
-            next.sysBp = v;
-            handleSimOptionsChange(next);
-          }}
-          colorClass="accent-orange-600"
-        />
-        <WaveformSlider
-          label="/"
-          value={simOptions.diaBp}
-          min={0}
-          max={250}
-          step={1}
-          digits={0}
-          unit="mmHg"
-          onChange={(v: number) => {
-            const next = new SimOptions(simOptions);
-            next.diaBp = v;
-            handleSimOptionsChange(next);
-          }}
-          colorClass="accent-orange-600"
-        />
+      <div className="flex gap-1">
+        <div className="flex-[2] min-w-0">
+          <WaveformSlider
+            label="NIBP"
+            value={simOptions.sysBp}
+            min={0}
+            max={250}
+            step={1}
+            digits={0}
+            unit=""
+            onChange={(v: number) => {
+              const next = new SimOptions(simOptions);
+              next.sysBp = v;
+              handleSimOptionsChange(next);
+            }}
+            colorClass="accent-orange-600"
+          />
+        </div>
+        <div className="flex-[1] min-w-0">
+          <WaveformSlider
+            label="/"
+            value={simOptions.diaBp}
+            min={0}
+            max={250}
+            step={1}
+            digits={0}
+            unit="mmHg"
+            onChange={(v: number) => {
+              const next = new SimOptions(simOptions);
+              next.diaBp = v;
+              handleSimOptionsChange(next);
+            }}
+            colorClass="accent-orange-600"
+          />
+        </div>
 
       </div>
       <Accordion type="multiple" className="w-full space-y-2">
@@ -166,7 +183,7 @@ export function AccordionUIMock({
               simOptions={simOptions}
               handleSimOptionsChange={handleSimOptionsChange}
             />
-            
+
             <StatusButtons
               group="conduction_status"
               current={simOptions.getStatus('conduction_status') ?? ''}

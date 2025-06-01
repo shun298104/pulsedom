@@ -1,17 +1,13 @@
-// src/engine/RhythmEngine.ts
 import { GraphEngine } from './GraphEngine';
 import { playBeep } from '../audio/playBeep';
 import { ECG_CONFIG, MAX_DELAY } from '../constants/constants';
 import { Path } from './graphs/Path';
 import type { WaveBufferMap } from './WaveBuffer';
 import type { LeadName } from '../constants/leadVectors';
-import { PulseWaveFn } from './generators/generatePulseWave';
-
 import { VENTRICULAR_NODES } from '../constants/constants';
 
 const DEFAULT_RR = 750;
 const MS_PER_MINUTE = 60000;
-const BASE_SYSTOLIC_MS = 300; // 生理値基準
 
 export class RhythmEngine {
   private graph: GraphEngine;
@@ -27,17 +23,7 @@ export class RhythmEngine {
   private paths: Path[];
   private vFireTimes: number[] = [];
   private onHrUpdate?: (hr: number) => void;
-  private lastContractionTime: number;
-  private ventricularFiringSet: Set<string> = new Set();
-  private isContracting: boolean = false;
-  private rr: number = DEFAULT_RR;
-
-  // Windkesselモデル用パラメータ（SimOptions/UI等と連動可能）
-  private r: number = 0.06;
-  private c: number = 1.2;
-  private sv: number = 70;
-  private pulseWaveFn: (t: number) => number = () => 0;
-
+  
   constructor({
     graph,
     bufferRef,
@@ -67,30 +53,11 @@ export class RhythmEngine {
     this.bufferRef = bufferRef;
     this.paths = graph.getPaths();
     this.onHrUpdate = onHrUpdate;
-    this.lastContractionTime = -3_000;
-
-    // 初期pulseWaveFn（sdはrr依存で都度計算するのでここは適当でOK）
-    this.updatePulseWaveFn();
   }
 
-  /** rrから生理学的収縮期長sdを計算（Path補正式と完全一致） */
-  private calcSd(rr: number): number {
-    const rrFactor = Math.max(0.5, Math.min(1.5, Math.sqrt(rr / 1000)));
-    return BASE_SYSTOLIC_MS * rrFactor;
-  }
-
-  /** Windkessel厳密モデルでpulseWaveFnを再生成（毎拍呼ぶ） */
-  public updatePulseWaveFn() {
-    const sd = this.calcSd(this.rr);
-    this.pulseWaveFn = PulseWaveFn({
-      rr: this.rr,
-      r: this.r,
-      c: this.c,
-      sv: this.sv,
-      sd: sd, // PathのQT補正式と同じ計算で注入！
-      dt: 1,
-    });
-  }
+  private ventricularFiringSet: Set<string> = new Set();
+  private isContracting: boolean = false;
+  private rr:number = DEFAULT_RR;
 
   private checkContractionByNodeFiring(firedNow: string[]): boolean {
     for (const nodeId of firedNow) {
@@ -98,11 +65,13 @@ export class RhythmEngine {
         this.ventricularFiringSet.add(nodeId);
       }
     }
+
     if (this.ventricularFiringSet.size >= VENTRICULAR_NODES.size) {
       this.ventricularFiringSet.clear();
       this.isContracting = true;
       return true;
     }
+
     return false;
   }
 
@@ -154,31 +123,26 @@ export class RhythmEngine {
     while (currentTime - this.lastStepTime >= ECG_CONFIG.stepMs / 1000) {
       this.lastStepTime += ECG_CONFIG.stepMs / 1000;
       const t = this.lastStepTime;
-      const nowMs = t * 1000;
 
-      this.updateBuffer(nowMs - MAX_DELAY);
+      this.updateBuffer(t * 1000 - MAX_DELAY);
 
       const vitals = this._getVitals?.();
+      const pulse = 0;
+      const spo2 = 0;
+      
 
-      // 脈波ディレイ（例：120ms）でspo2波形をQRSより遅らせる
-      const pulseElapsed = nowMs - this.lastContractionTime; // [ms]
-      const spo2 = this.pulseWaveFn(pulseElapsed >= 0 ? pulseElapsed : 0);
-
+      this.pushBuffer('pulse', pulse);
       this.pushBuffer('spo2', spo2);
 
       const firing = this.graph.tick(t * 1000);
       if (this.checkContractionByNodeFiring(firing)) {
         const now = t * 1000;
-        this.lastContractionTime = now;
         this.vFireTimes.push(now);
         this.vFireTimes = this.vFireTimes.filter(ts => ts >= now - 5000);
 
         const hr = this.calculateHrFromMedian();
         this.onHrUpdate?.(hr);
         this.rr = this.calculateLastRR();
-
-        // 毎拍でPulseWaveFn再生成（rrやパラメータ変化対応・sdをrrから再計算）
-        this.updatePulseWaveFn();
 
         const spo2ForBeep = vitals?.spo2 ?? -1;
 

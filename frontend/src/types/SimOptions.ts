@@ -1,5 +1,4 @@
 // src/types/SimOptions.ts
-import { NodeId } from '../types/NodeTypes';
 import { ruleMap } from '../rules/graphControlRuleList';
 import { graphControlRules, getDefaultOptionsFromRules } from '../rules/graphControlRuleList';
 
@@ -99,7 +98,6 @@ export class SimOptions {
         }
       }
     }
-
     this.status[group] = id;
   }
 

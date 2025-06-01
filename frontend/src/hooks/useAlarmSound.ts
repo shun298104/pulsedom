@@ -8,7 +8,8 @@ import { SimOptions } from '../types/SimOptions';
 export function useAlarmSound(
   simOptions: SimOptions,
   hr: number,
-  audioRef: React.RefObject<HTMLAudioElement | null>
+  audioRef: React.RefObject<HTMLAudioElement | null>,
+  isAlarmOn: boolean,
 ): {
   alarmLevel: AlarmLevel;
   alarmMessages: string[];
@@ -27,6 +28,7 @@ export function useAlarmSound(
       result.level,
       audioRef.current,
       import.meta.env.BASE_URL,
+      isAlarmOn,
       result.primaryWarningKey,
       result.activeWarningKeys
     );

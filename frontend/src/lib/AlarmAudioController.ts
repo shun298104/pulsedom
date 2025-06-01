@@ -8,10 +8,13 @@ export const updateAlarmSound = (
   level: 'normal' | 'warning' | 'critical',
   audio: HTMLAudioElement | null,
   srcBase: string,
+  isAlarmOn: boolean = true,    // ←追加
   warningKey?: string,
-  activeWarningKeys?: string[]
+  activeWarningKeys?: string[],
 ) => {
   if (!audio) return;
+  if (!isAlarmOn) return;
+
   const now = Date.now();
 
   // --- normal level の時のサイレント処理（全警告解除時） ---

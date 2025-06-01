@@ -23,7 +23,6 @@ function App() {
 
     return restored ?? new SimOptions(createDefaultSimOptions());
   });
-  simOptions.setStatus('sinus_staus','SAB2');
   const simOptionsRef = useRef(simOptions);
   const graphRef = useRef<GraphEngine | null>(null);
   const [hr, setHr] = useState(-1);
@@ -31,12 +30,14 @@ function App() {
   //同期音関連
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
-  const [isEditorVisible, setEditorVisible] = useState(true);
   const isBeepOnRef = useRef(false);
+  const [isAlarmOn, setIsAlarmOn] = useState(false);
+  const isAlarmOnRef = useRef(false);
+  const [isEditorVisible, setEditorVisible] = useState(true);
 
   //アラームコントロール
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
-  const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef);
+  const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef, isAlarmOn);
   const handleStopAlarm = () => stopAlarm(alarmAudioRef.current, alarmLevel);
 
   // バッファの初期化
@@ -58,7 +59,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-
     const rhythmEngine = new RhythmEngine({
       graph: graphRef.current as GraphEngine,
       bufferRef,
@@ -94,6 +94,12 @@ function App() {
 
   const handleSimOptionsChange = (next: SimOptions) => {
     setSimOptions(next);
+    const bp_diff = next.sysBp - simOptionsRef.current.sysBp;
+    if (bp_diff !== 0) {
+      next.diaBp = simOptionsRef.current.diaBp + (bp_diff /3 *2)
+    }
+    if (next.diaBp < 0) next.diaBp = 0;
+    if (next.diaBp > next.sysBp) next.diaBp = next.sysBp
     simOptionsRef.current = next;
     const graph = graphRef.current;
     if (graph) updateGraphEngineFromSim(next, graph);
@@ -110,6 +116,13 @@ function App() {
     setIsBeepOn(next);
   };
 
+  const handleAlarmToggle = () => {
+    const next = !isAlarmOn;
+    isAlarmOnRef.current = next;
+    setIsAlarmOn(next);
+    if (!next) { stopAlarm(alarmAudioRef.current, alarmLevel); }
+  }
+
   const isSimRunningRef = useRef(true);
   const [isSimRunning, setIsSimRunning] = useState(true);
   useEffect(() => {
@@ -118,10 +131,7 @@ function App() {
 
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsSimRunning(false);
-        console.log('🔚[ESC] Simulation paused');
-      }
+      if (e.key === 'Escape') { setIsSimRunning(false); }
     };
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
@@ -137,7 +147,9 @@ function App() {
         setEditorVisible={setEditorVisible}
         handleSimOptionsChange={handleSimOptionsChange}
         isBeepOn={isBeepOn}
+        isAlarmOn={isAlarmOn}
         handleBeepToggle={handleBeepToggle}
+        handleAlarmToggle={handleAlarmToggle}
         simOptions={simOptions}
         stopAlarm={handleStopAlarm}
         alarmLevel={alarmLevel}

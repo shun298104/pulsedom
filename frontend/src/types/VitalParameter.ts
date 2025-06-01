@@ -129,7 +129,7 @@ export const NIBP_SYS_PARAM = new VitalParameter({
   decimals: 0,
   alarm: {
     warnLow: 80,
-    warnHigh: 140,
+    warnHigh: 160,
     critLow: 0,
     critHigh: 300,
   },
@@ -145,7 +145,7 @@ export const NIBP_DIA_PARAM = new VitalParameter({
   decimals: 0,
   alarm: {
     warnLow: 40,
-    warnHigh: 100,
+    warnHigh: 120,
     critLow: 0,
     critHigh: 300,
   },
