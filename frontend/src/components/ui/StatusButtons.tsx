@@ -8,7 +8,7 @@ interface StatusButtonsProps {
   group: string;
   current: string;
   simOptions: SimOptions;
-  handleSimOptionsChange: (next: SimOptions) => void;
+  updateSimOptions: (next: SimOptions) => void;
 }
 
 const getStatusesByGroup = (group: string): string[] => {
@@ -21,14 +21,14 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
   group,
   current,
   simOptions,
-  handleSimOptionsChange,
+  updateSimOptions,
 }) => {
   const statuses = getStatusesByGroup(group);
 
   const handleClick = (status: string) => {
     const next = simOptions.clone();
     next.setStatus(group, status);
-    handleSimOptionsChange(next);
+    updateSimOptions(next);
   };
 
   const ruleId = current;
@@ -47,8 +47,8 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
                   <button
                     onClick={() => handleClick(status)}
                     className={`px-2 py-1 rounded border text-xs font-medium tracking-wide transition ${current === status
-                        ? 'bg-zinc-300 text-teal-700 border-zinc-400'
-                        : 'hover:bg-zinc-200 border-zinc-400'
+                      ? 'bg-zinc-300 text-teal-700 border-zinc-400'
+                      : 'hover:bg-zinc-200 border-zinc-400'
                       }`}
                   >
                     {status}
@@ -74,9 +74,9 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
           values={simOptions.getOptionsForStatus(extendedKey)}
           onChange={(key, value) => {
             const next = simOptions.clone();
-            console.log("[uicontrol]",next,extendedKey, key, value)
+            console.log("[uicontrol]", next, extendedKey, key, value)
             next.setExtendedOption(extendedKey, key, value);
-            handleSimOptionsChange(next);
+            updateSimOptions(next);
           }}
         />
       )}

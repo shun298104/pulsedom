@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PX_SCALE } from '../constants/constants';
 import { waveMetaMap } from '../constants/waveMetaMap';
-import { leadVectors, LeadName } from '../constants/leadVectors';
+import { leadVectors } from '../constants/leadVectors';
 
 interface WaveCanvasProps {
   bufferRef: React.MutableRefObject<Record<string, { getArray: () => number[]; size: () => number }>>;

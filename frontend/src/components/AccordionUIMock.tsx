@@ -1,9 +1,9 @@
 import { SimOptions } from "../types/SimOptions";
 import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
+import { useAppState } from '../hooks/AppStateContext';
 
 import WaveformSlider from "./ui/WaveformSlider";
 import StatusButtons from "./ui/StatusButtons";
-
 import {
   Accordion,
   AccordionContent,
@@ -11,25 +11,17 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 
-interface AccordionUIMockProps {
-  simOptions: SimOptions;
-  handleSimOptionsChange: (next: SimOptions) => void;
-  isBeepOn: boolean;
-  isAlarmOn: boolean;
-  onToggleBeep: () => void;
-  onToggleAlarm: () => void;
-}
+const AccordionUIMock: React.FC = () => {
+  // Contextからすべて取得！
+  const {
+    simOptions,
+    updateSimOptions,
+    isBeepOn,
+    isAlarmOn,
+    toggleBeep,
+    toggleAlarm,
+  } = useAppState();
 
-export function AccordionUIMock({
-
-  simOptions,
-  handleSimOptionsChange,
-  isBeepOn,
-  isAlarmOn,
-  onToggleBeep,
-  onToggleAlarm,
-
-}: AccordionUIMockProps) {
   // ------- 状態更新関数（SimOptions クラス対応） --------
   const updateRate = (
     node: "sinus" | "junction" | "ventricle",
@@ -47,7 +39,7 @@ export function AccordionUIMock({
         next.ventricleRate = value;
         break;
     }
-    handleSimOptionsChange(next);
+    updateSimOptions(next);
   };
 
   return (
@@ -58,7 +50,7 @@ export function AccordionUIMock({
             ? "bg-zinc-300 text-green-700"
             : "hover:bg-zinc-200"
             }`}
-          onClick={onToggleBeep}
+          onClick={toggleBeep}
         >
           {isBeepOn ? "	🔊 SYNC BEEP ON " : "🔇 SYNC BEEP OFF"}
         </button>
@@ -68,7 +60,7 @@ export function AccordionUIMock({
             ? "bg-zinc-300 text-green-700"
             : "hover:bg-zinc-200"
             }`}
-          onClick={onToggleAlarm}
+          onClick={toggleAlarm}
         >
           {isAlarmOn ? "🔔 ALARM ON " : "🔕 ALARM OFF"}
         </button>
@@ -97,7 +89,7 @@ export function AccordionUIMock({
         onChange={(v: number) => {
           const next = new SimOptions(simOptions);
           next.spo2 = v;
-          handleSimOptionsChange(next);
+          updateSimOptions(next);
         }}
         colorClass="accent-cyan-600"
       />
@@ -114,7 +106,7 @@ export function AccordionUIMock({
             onChange={(v: number) => {
               const next = new SimOptions(simOptions);
               next.sysBp = v;
-              handleSimOptionsChange(next);
+              updateSimOptions(next);
             }}
             colorClass="accent-orange-600"
           />
@@ -131,12 +123,11 @@ export function AccordionUIMock({
             onChange={(v: number) => {
               const next = new SimOptions(simOptions);
               next.diaBp = v;
-              handleSimOptionsChange(next);
+              updateSimOptions(next);
             }}
             colorClass="accent-orange-600"
           />
         </div>
-
       </div>
       <Accordion type="multiple" className="w-full space-y-2">
         <AccordionItem value="sinus">
@@ -153,12 +144,11 @@ export function AccordionUIMock({
               onChange={(v: number) => updateRate("sinus", v)}
               colorClass="accent-green-500"
             />
-
             <StatusButtons
               group="sinus_status"
               current={simOptions.getStatus('sinus_status') ?? ''}
               simOptions={simOptions}
-              handleSimOptionsChange={handleSimOptionsChange}
+              updateSimOptions={updateSimOptions}
             />
           </AccordionContent>
         </AccordionItem>
@@ -181,14 +171,13 @@ export function AccordionUIMock({
               group="junction_status"
               current={simOptions.getStatus('junction_status') ?? ''}
               simOptions={simOptions}
-              handleSimOptionsChange={handleSimOptionsChange}
+              updateSimOptions={updateSimOptions}
             />
-
             <StatusButtons
               group="conduction_status"
               current={simOptions.getStatus('conduction_status') ?? ''}
               simOptions={simOptions}
-              handleSimOptionsChange={handleSimOptionsChange}
+              updateSimOptions={updateSimOptions}
             />
           </AccordionContent>
         </AccordionItem>
@@ -215,12 +204,13 @@ export function AccordionUIMock({
               group="demo"
               current={simOptions.sinus_status ?? ''}
               simOptions={simOptions}
-              handleSimOptionsChange={handleSimOptionsChange}
+              updateSimOptions={updateSimOptions}
             />
-
           </AccordionContent>
         </AccordionItem>
       </Accordion>
     </div >
   );
 }
+
+export default AccordionUIMock;
