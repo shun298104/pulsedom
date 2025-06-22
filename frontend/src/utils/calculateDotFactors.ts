@@ -13,12 +13,12 @@ const limb = {
 };
 
 const chest: Record<'V1' | 'V2' | 'V3' | 'V4' | 'V5' | 'V6', vec3> = {
-    V1: vec3.fromValues(-2,  4, 7),
-    V2: vec3.fromValues( 1,  4, 8),
-    V3: vec3.fromValues( 3,  6, 8),
-    V4: vec3.fromValues( 4,  8, 6),
-    V5: vec3.fromValues( 6,  9, 5),
-    V6: vec3.fromValues( 7,  9, 4),
+    V1: vec3.fromValues(-3,  2, 10),
+    V2: vec3.fromValues( 3,  2, 10),
+    V3: vec3.fromValues( 6,  4, 8),
+    V4: vec3.fromValues( 8,  5, 6),
+    V5: vec3.fromValues( 9,  5, 5),
+    V6: vec3.fromValues( 10, 5, 3),
 };
 
 const DEG_TO_RAD = Math.PI / 180;

@@ -5,6 +5,7 @@ import { Afl } from './generators/AflCustomRule';
 import { CAVB, normalConduction, WBBlock, M2Block, firstAVB } from './generators/AVConductionCustomRule';
 import { PACs } from './generators/PACsCustomRule'
 import { SAB2 } from './generators/SSSCustomRule'
+import { junc_Normal, AVNRT } from './generators/JunctionCustomRule';
 
 export const graphControlRules: GraphControlRule[] = [
   {
@@ -50,54 +51,15 @@ export const graphControlRules: GraphControlRule[] = [
   Af,
   Afl,
   SAB2,
-  PACs,
+//  PACs,
   normalConduction,
   firstAVB,
   WBBlock,
   M2Block,
   CAVB,
-  {
-    id: 'junc_Normal',
-    label: 'Junction Normal Status',
-    group: 'junction_status',
-    exclusiveGroup: 'AVstatus',
-    description: 'Normal Juncational Status',
-    effects: {
-      node: {
-        AN: { refractory: 250 },
-        LA: { refractory: 75, },
+//  junc_Normal,
+//  AVNRT,
 
-      },
-      path: {
-        'A->IA': { block: false },
-        'IA->AN_fast': { refractoryMs: 250, block: false },
-        'IA->AN_slow_1': { refractoryMs: 40 },
-        'IA->AN_fast_retro': { refractoryMs: 275 },
-        'IA->AN_slow_retro_1': { refractoryMs: 250, block: false },
-      }
-    }
-  },
-  {
-    id: 'AVNRT',
-    label: 'AVNRT',
-    group: 'junction_status',
-    exclusiveGroup: 'AVstatus',
-    description: 'AV node Re-entry Tachycardia',
-    effects: {
-      node: {
-        AN: { forceFiring: true, refractory: 100 },
-        LA: { refractory: 150, },
-
-      },
-      path: {
-        'A->IA': { block: true },
-        'IA->AN_fast': { refractoryMs: 100, block: true },
-        'IA->AN_slow_1': { refractoryMs: 40 },
-        'IA->AN_fast_retro': { refractoryMs: 20 },
-        'IA->AN_slow_retro_1': { refractoryMs: 100, block: true },
-      }
-    }
-  },
 ];
 
 export const ruleMap = Object.fromEntries(

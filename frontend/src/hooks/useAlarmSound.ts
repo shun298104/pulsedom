@@ -32,7 +32,7 @@ export function useAlarmSound(
       result.primaryWarningKey,
       result.activeWarningKeys
     );
-  }, [simOptions, hr]);
+  }, [simOptions, hr, isAlarmOn]);
 
   return { alarmLevel, alarmMessages };
 }

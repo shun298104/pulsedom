@@ -44,5 +44,5 @@ export function updateGraphWithPACsCustomArgs(args: Record<string, number>, grap
     console.log("[PACsCustom]",args)
     const PACs = args.PACburst;
     const PAC_intensity = args.intensity;
-    console.log("[PACsCustom]", PACs, PAC_intensity);
+    console.log("[PACsCustom]", PACs, PAC_intensity, graph);
 }

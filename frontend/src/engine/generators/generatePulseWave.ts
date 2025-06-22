@@ -18,8 +18,18 @@ export function PulseWaveFn(params: PulseWaveParams): (t: number) => number {
   const rr = params.rr;
   const r = params.r;
   const c = params.c;
-  const sv = params.sv;
-  const sd = params.sd;
+//  const sv = params.sv;
+
+  const rr_base = 750; // [ms]（平均値・基準値）
+  const sv_base = 70;  // [mL]（SimOptions由来 or デフォ値）
+  const alpha = 0.5;   // 補正式パラメータ（体感0.3〜0.5くらいで良い）
+
+  // 毎回、updatePulseWaveFnで計算
+  const sv = sv_base * Math.pow(rr / rr_base, alpha);
+  const baseSd = params.sd; // 旧sdを基準値として利用
+
+  const rrFactor = Math.max(0.25, Math.min(1.3, Math.sqrt(rr / 1000)));
+  const sd = baseSd * rrFactor;
 
   // Qin（収縮期流入）: 論文sin型, それ以外は0
   // t[ms]→[s]換算

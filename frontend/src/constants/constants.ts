@@ -4,7 +4,7 @@
 export const STEP_MS = 5;
 
 //　＝canvasで描画しない時間(ms)
-export const MAX_DELAY = 60;
+export const MAX_DELAY = 120;
 
 // 1秒あたりのピクセル数（Canvas描画用）
 export const SCALE = {

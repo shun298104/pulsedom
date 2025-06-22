@@ -114,6 +114,7 @@ export class RhythmEngine {
     const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
     const rr = this.rr ?? DEFAULT_RR;
 
+    // 1. 各Pathから理論値合成
     for (const path of this.paths) {
       const baseWave = path.getBaseWave(nowMs, rr);
       for (const lead in path.dotFactors) {
@@ -122,10 +123,23 @@ export class RhythmEngine {
       }
     }
 
+    // 2. ノイズ＆呼吸性ゆらぎを注入
+    const tSec = nowMs / 1000;
+    const NOISE_STDDEV = 0.01; // ノイズ強度（標準偏差、適宜調整）
+    const RESP_RATE = 0.25;    // 呼吸周期 [Hz]（例: 0.25Hz=15回/分）
+    const RESP_AMP = 0.07;     // 呼吸変動振幅（3% of 波形、適宜調整）
+
     for (const lead in voltages) {
-      this.pushBuffer(lead as LeadName, voltages[lead as LeadName]);
+      // ホワイトノイズ（±NOISE_STDDEVの一様分布: 簡易版）
+      const noise = NOISE_STDDEV * (Math.random() * 2 - 1);
+      // 呼吸性ゆらぎ（正弦波modulation）
+      const respMod = 1.0 + RESP_AMP * Math.sin(2 * Math.PI * RESP_RATE * tSec);
+      // 合成
+      const v = voltages[lead as LeadName] * respMod + noise;
+      this.pushBuffer(lead as LeadName, v);
     }
   }
+
 
   public setGraph(graph: GraphEngine) {
     this.graph = graph;

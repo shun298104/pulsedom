@@ -1,6 +1,7 @@
 import { SimOptions } from "../types/SimOptions";
 import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
 import { useAppState } from '../hooks/AppStateContext';
+import { Share2 } from "lucide-react";
 
 import WaveformSlider from "./ui/WaveformSlider";
 import StatusButtons from "./ui/StatusButtons";
@@ -43,8 +44,9 @@ const AccordionUIMock: React.FC = () => {
   };
 
   return (
+
     <div className="space-y-2">
-      <div className="flex justify-between items-center gap-2 px-1">
+      <div className="flex justify-between items-center gap-1 px-1">
         <button
           className={`text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition ${isBeepOn
             ? "bg-zinc-300 text-green-700"
@@ -52,7 +54,7 @@ const AccordionUIMock: React.FC = () => {
             }`}
           onClick={toggleBeep}
         >
-          {isBeepOn ? "	🔊 SYNC BEEP ON " : "🔇 SYNC BEEP OFF"}
+          {isBeepOn ? "	🔊 SYNC BEEP ON " : "🔇 SYNC BEEP OFF "}
         </button>
         {/* アラームON/OFFボタン */}
         <button
@@ -63,18 +65,6 @@ const AccordionUIMock: React.FC = () => {
           onClick={toggleAlarm}
         >
           {isAlarmOn ? "🔔 ALARM ON " : "🔕 ALARM OFF"}
-        </button>
-        <button
-          className="hidden text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
-          onClick={() => {
-            const encoded = encodeSimOptionsToURL(simOptions);
-            const url = `${window.location.origin}?sim=${encoded}`;
-            navigator.clipboard.writeText(url)
-              .then(() => alert("✅ URL copied!"))
-              .catch(() => alert("❌ Failed to copy URL"));
-          }}
-        >
-          🔗 COPY URL
         </button>
       </div>
 
@@ -197,18 +187,21 @@ const AccordionUIMock: React.FC = () => {
             />
           </AccordionContent>
         </AccordionItem>
-        <AccordionItem value="devmode">
-          <AccordionTrigger>in Development</AccordionTrigger>
-          <AccordionContent className="space-y-1">
-            <StatusButtons
-              group="demo"
-              current={simOptions.sinus_status ?? ''}
-              simOptions={simOptions}
-              updateSimOptions={updateSimOptions}
-            />
-          </AccordionContent>
-        </AccordionItem>
       </Accordion>
+      <button
+        className="abosolute bottom-2 text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
+        onClick={() => {
+          const encoded = encodeSimOptionsToURL(simOptions);
+          const url = `${window.location.origin}?sim=${encoded}`;
+          navigator.clipboard.writeText(url)
+            .then(() => alert("✅ URL copied!"))
+            .catch(() => alert("❌ Failed to copy URL"));
+        }}
+      >
+        <Share2 className="w-6 h-6" />
+
+      </button>
+
     </div >
   );
 }

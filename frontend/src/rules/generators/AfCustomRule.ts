@@ -35,7 +35,7 @@ export const Af: GraphControlRule = {
             min: 300,
             max: 600,
             step: 10,
-            defaultValue: 400,
+            defaultValue: 500,
         },
         {
             type: 'slider',
@@ -44,7 +44,7 @@ export const Af: GraphControlRule = {
             min: 0.0,
             max: 0.2,
             step: 0.02,
-            defaultValue: 0.04,
+            defaultValue: 0.06,
         },
         {
             type: 'slider',
@@ -53,7 +53,7 @@ export const Af: GraphControlRule = {
             min: 0.1,
             max: 0.8,
             step: 0.1,
-            defaultValue: 0.3,
+            defaultValue: 0.5,
         },
     ],
 };

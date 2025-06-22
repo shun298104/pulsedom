@@ -1,112 +1,132 @@
-PULSEDOM 開発アーキテクチャ
+### 1. データ構造
+## ◾️ SimOptions　//src/types/SimOptions.ts
+シミュレーション状態およびユーザー選択内容を一元管理するクラス。
+sinus_status, junction_status, ventricle_status: GraphControlRule型で現在のリズム状態を保持
+sinus_rate, junction_rate, ventricle_rate, hr, spo2, nibp_sys, nibp_diaなどVS基本データを管理
+rawData.options: GraphControlRuleで定義された拡張オプション（Record<string, number>）を動的格納
+# 主なメソッド
+getOption(), setOption(), getStatuses(), clone(), getRaw()
+※getRaw()は将来toJSON()で責務分離予定
 
-1. データ構造
+## ◾️ VitalParameter // src/models/VitalParameter.ts
+バイタル（心拍数、SpO₂、収縮期/拡張期血圧など）の表示・アラーム評価用クラス。
+min/maxによる値クランプ、UIスケーリング
+format(value)による表示整形
+warnLow/warnHigh, critLow/critHighでnormal/warning/critical段階判定
+Tailwind CSSクラスで各パラメータごとに色指定
+SimOptions.rawDataキーとバインドして値参照
 
----
+## ◾️ Node
+解剖学的ユニット（洞結節、房室結節、His束、心室など）を表現。
+# 基本属性:
+id, bpm, primaryRefractoryMs, x, y, z（位置座標: 空間原点はAV-His結節（X=左, Y=足側, Z=胸前））
+CONFIG:
+autoFire, forceFiring, refractoryMs, ectopic_enabled, ectopic_probability, ectopic_bpmFactor, burst_enabled, burst_maxCount, burst_intervalMs, jitterMs 等
+STATE:
+lastFiredAt, nextFiringAt, burst_counter 等
+# メソッド:
+setConfig(), getRefractoryMs(), shouldAutoFire(), setNextFiringAt(), isRefractory() など
+※CONFIGはGC経由のみ編集、STATEはGE進行中のみ編集。責務分離厳守。
 
-### types
+## ◾️ Path
+ノード間の伝導路を表現するクラス。属性区分は以下の3つで厳密分離：
+amplitudeは常に正値、方向性はベクトル内積で決定、polarityはT波極性
+# 【基本属性（Path直下／不変属性）】
+id: パスID, from: 出発ノードID, to: 到着ノードID, reversePathId: 逆行伝導ペアパスID
+【CONFIG（GraphControlでのみ編集）】
+delayMs: 伝導遅延 [ms], refractoryMs: 不応期 [ms], apdMs: 活動電位持続時間 [ms], amplitude: 振幅, polarity: T波極性, priority: 優先度, blocked: ブロック状態, conductionProbability: 伝導確率, delayJitterMs: 遅延ジッター, decrementalStep: 減衰ステップ, wenckebachPhenomenon: ウェンケバッハ現象フラグ
+【STATE（GraphEngineのみ編集）】
+lastConductedAt: 最終伝導時刻 [ms/tick], absoluteRefractoryUntil: 絶対不応期終了時刻, decrementalMs: 減衰状態 [ms], pending: 伝導予定フラグや一時ステータス（必要に応じて拡張）
+# 【主なメソッド】
+setConfig(newConfig), setState(newState)
+getCurrentDelayMs(), conduct(), canConduct()
+getBaseWave(), getVoltages(), getDotFactor() など
+# 【設計原則】
+基本属性は絶対不変、CONFIG/STATEは責任分離、外部からの直接STATE編集は禁止（GE経由のみ）
+メソッドで副作用を伴う操作も責任区分厳守
 
-#### ◾️ SimOptions　//src/types/SimOptions.ts
+## ◾️ GraphControlRule
+心電図リズムや異常伝導など状態変化を引き起こすルール定義。
+id: 状態ID（例: 'Af', 'AFL', 'SSS3'）
+effects: node/pathのPartial書き換え、setOptionsによるSimOptionsオプション変更
+uiControls: UI展開要素
+exclusiveGroup: 排他制御グループ
+updateGraph: グラフ動的更新用ハンドラー
+# 設計ポイント
+ルールに書かれた内容のみが唯一の真実（UIやSimOptionsは単なる記録係）
+GC（GraphControl）がeffectsやupdateGraphでグラフへ反映
 
-* シミュレーション状態およびユーザー選択内容を保持
-* sinus/junction/ventricle の GraphControlRule状態とVS（hr, spo2, nibpなど）を保持
-* 拡張オプションは `rawData.options: Record<string, number>` に保持
-* `clone()`：内部操作用ローカルコピー / `getRaw()`：永続化・送信用構造
-* 将来的に `toJSON()` を導入予定
+### 2. アルゴリズム構成
+## ◾️ GraphEngine (GE)
+時間進行（tick）に沿った興奮伝導のシミュレーション担当
+scheduledFiresによる伝導遅延・不応期管理
+Path単位での伝導判定、発火・ブロック・伝導イベントを記録
+STATEはGE進行中のみ更新、CONFIGへの干渉は不可
 
-#### ◾️ VitalParameter // src/models/VitalParameter.ts
+## ◾️ RhythmEngine (RE)
+GEのtick()を駆動する
+getVoltageAt(t)で全アクティブwaveformを合成しjitter処理を加えてBufferに格納
+checkContractionByNodeFiring()で収縮期を判定し、心拍数を計算・UIへコールバック
+calculateLastRR()で直近RR間隔を計算しthis.rrへ保存
+収縮期判定時に心同期音再生(playBeep)
+SPO2/ART波形の生成・Buffer格納
+REが直接グラフを書き換えることはない
+GEで困難な現象（VF等）を補助する可能性あり
 
-* VSの表示・アラーム管理
-* clamp、format、アラーム判定（normal/warning/critical）、UI表示色、SimOptionsバインド
+## ◾️ GraphControl (GC)
+GraphControlRule[]に従った宣言的制御ロジックの中核
+状態論理・UI制御・effects反映を担当し、グラフシミュレーションには関与しない
+updateGraphEngineFromSim(sim): SimOptions→GE反映のためのメソッド
+ルールに沿ってグラフを書き換えるときのみGCがCONFIGに干渉可
 
-#### ◾️ Node
+## ◾️ AlarmController (AC)
+VS値に応じたアラームレベル判定・鳴動・ミュート管理
+evaluate(raw: RawSimOptions): 各VSをVitalParameter.getStatus()で評価し、状態レベル判定
+criticalは3秒で自動再鳴動、warningは停止で完全ミュート（再発なし）
+lastStatusesにより状態変化のみアラームを更新
 
-* 解剖学的ユニット、bpm/refMs/coordなど
-* 自動能と不応期の管理が責務
-* CONFIG: autoFire/forceFiring / STATE: lastFiredAt, burst\_counter
+### 3. UI構成
+PULSEDOMのUIは「全グローバル状態をContextで一元管理し、propsバケツリレーを廃止する」方針で実装されています。
+主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得・操作できます。
+# App（App.tsx + AppUILayout.tsx）
+グローバル状態（SimOptions、アラームOn/Off、Beep On/Off、バッファ等）は AppStateContext で一元管理
+すべての下層UIは Context から値やハンドラを直接取得し、propsで渡す必要がない
+GraphEngine/RhythmEngineの生成、updateGraphEngineFromSim()による初期化
+RhythmEngine.step() を requestAnimationFrame() で駆動
+アラーム制御（評価・鳴動・ミュート）もContext経由
+ESCキーで一時停止可能
+# Accordion
+サイドパネルUI。全ての状態は Context から直接取得
+スライダーや状態ボタン、ルールUIなどを格納
+下層の WaveformSlider, StatusButtons もContext取得・更新
+# StatusButtons
+GraphControlGroup単位のボタンUI
+SimOptionsや各種statusは Context から取得・即時反映
+# RuleControlUI
+rule.uiControls[]を自動でスライダー等に展開
+SimOptions更新も Context 取得
+# WaveCanvas
+バッファ（bufferRef）は Context で管理
+心電図やバイタル波形の描画canvas
 
-#### ◾️ Path
+### 4. 設計哲学
+GraphControlRuleこそ「唯一の真実」UIはルールで定義された状態だけを反映。全状態・グループ・排他・意味付けはGraphControlRuleで宣言的に記述する。SimOptionsは単なる記録。
 
-* from/to, delay, apd, amplitude, polarityなどの伝導特性
-* reversePathId, lastConductedAtなどのSTATE
-* 電位合成：dotFactor×getVoltage
+## 責務分離厳守
+Node = 自動能＋不応期
+Path = 伝導＋波形合成
+単位はすべてms基準（内部的な秒処理もcanvas描画時に換算）
+ルール生成は関数型で、定義のミューテーションを避ける
+拡張（PAC, PVC, VF, 12誘導, ペーシングモード等）もGC起点で制御
 
-#### ◾️ GraphControlRule
+## パス衝突ポリシー
+multipath衝突はNodeでMAX_DELAY60msまで待って最も早く到達するパス優先、ほかは不応
+現状はreversePathによるfull block方式
 
-* 不整脈等のルール、UI展開、effects定義（node/path/setOptions）
-* 排他グループ、updateGraph(args, graph)での制御可能
+## 責任分離サマリ
+Node/PathのCONFIGはGCが管理、STATEはGEまたは伝導時に自己管理
 
-2. アルゴリズム構成
-
----
-
-#### ◾️ GraphEngine (GE)
-
-* 興奮・伝導制御、tickごとにscheduledFiresと不応期処理
-
-#### ◾️ RhythmEngine (RE)
-
-* GEを呼び出し、収縮期を判定し、Appに通知
-* Voltage合成、RR計算、心同期音やSPO2波形生成も担当
-
-#### ◾️ GraphControl (GC)
-
-* SimOptionsからGEを更新、GraphControlRuleに従ってグラフを制御
-* UI変更 → GCがruleId→rule.updateGraph()を実行
-
-#### ◾️ AlarmController(AC)
-
-* rawSimOptionsの評価、VitalParameterのgetStatus()で判定
-* ミュート制御（criticalは3秒、warningは完全停止）
-* 状態変化時のみアラーム更新
-
-3. UI構成
-
----
-
-#### ◾️ App（App.tsx+AppUILayout.tsx）
-
-* SimOptions初期化、GE/RE接続、アラーム制御、UIにprops提供
-
-#### ◾️ Accordion / StatusButtons / RuleControlUI
-
-* UIコンポーネント。スライダー、状態ボタン、rule.uiControlsの展開
-
-#### ◾️ WaveCanvas
-
-* Bufferから波形描画
-
-4. 設計哲学
-
----
-
-* GraphControlRuleが唯一の真実、UIはその“鏡”
-* 分岐は宣言的にルール記述、GC+RE起点での制御
-
-### Node
-
-* CONFIGはGC、STATEはGE
-* forceFiringはGCがtrue→Nodeが発火→falseリセット
-
-### Path
-
-* CONFIGはGC、STATEはGE/自己更新
-* 電位合成を担当、構造はclass or Record\<NodeId, Path\[]>型
-
-### PVC/PACなど
-
-* GCのeffectsでCONFIGを変更し再現、GraphControlRule.updateGraph()で微調整
-* GE+グラフで完結することを原則とし、それが困難なときのみ拡張
-
-### multipathポリシー
-
-* MAX\_DELAYまで待って早着順優先、現状はreversePath block、今後拡張予定
-
-5. ディレクトリマップ
-
----
-
-```
+### 5. ディレクトリマップ
 frontend/
 ├─ assets
 ├─ audio
@@ -116,57 +136,33 @@ frontend/
 ├─ constants
 ├─ engine
 │  ├─ graphs
-│  └─ generators
+│  └─ waveforms
 ├─ hooks
 ├─ lib
 ├─ rules
 │  └─ generators
 ├─ types
 └─ utils
-```
 
-6. Disclaimer
-
----
-
-PulseDom is not a certified medical device.  It is provided solely for education, research, and entertainment.  Do not use it for clinical decision‑making.
+### 6. Disclaimer
+PulseDomは医療機器として認証されたものではありません。
+教育・研究・エンタメ用途にのみ提供されており、臨床判断には使用しないでください。
 License: MIT (internal draft – may change before any public release).
 
-## 付録1：やりたいことリスト
+### 7. 付録：やりたいことリスト
+# A) 短期的にやりたいことリスト
+自動能ノードのbpm揺らぎ（bpmJitter）とそれに連動したrefractory時間調整
+心室ノードの特別扱いリファクタ（dotFactor外膜方向変換、虚血の障害電流実装）
+CTからノード座標のリアルプロット
+PVCのT波幅表現のためのsigma調整 など
 
-### A) MVP公開までにやること
+# B) そのうちやりたいリスト
+ノード・Pathの3D表示とリアルな12誘導再現
+WebSocket/PWA等を用いたスマホ連携・UIラップ
+i18n（多言語対応）、LPの作成、収益化モデル検討
+テーマプリセットの導入（rawData.themeにthemeId格納でURL共有もテーマ維持）
 
-* 脈波/動脈圧波形のRE実装とBuffer格納
-* path\[]のクラス化
+# C) さーちゃんの「やりたいこと」
+ドクターさーちゃん（心電図解説モード）
+シナリオ自動生成AI（Af→VT→VFなどストーリー自動生成）
 
-### B) 短期的にやりたいこと
-
-* SimOptionsのURL共有機能（JSON→base64、QR対応も視野）
-* SimOptions Context化によるバケツリレーprops解消
-* bpmJitter＋refractory変動実装
-* 心室ノードのrefactor（dotFactorと虚血電流）
-* 自身のCTからノードプロット
-
-### C) 将来的にやりたいこと
-
-* Path/Nodeの3D表示＋12誘導再現
-* WebSocketによるスマホ連携＋PWA化
-* i18n対応、LP作成、UIテーマプリセット
-* 収益化モデルの検討
-
-### D) さーちゃんのやりたいこと
-
-🤖 Dr.さーちゃん（ECG解説）
-🔍 シナリオ自動生成AI（例：Af→VT→VF）
-
-### E) 思い付き
-
-* PVCのT波幅調整（sigma制御）
-
-
-### 付録2：📌 Git / deploy作業を行う際は、以下を厳守すること：
-
-1. `README.md` に記載されたディレクトリマップを**唯一の事実として採用**
-2. `pulsedom/` をプロジェクトのGitルートとし、`frontend/` はその配下とする
-3. `git push` や `gh-pages` deploy の前に、`git status` に `/frontend/...` のファイルが含まれていることを**目視で確認**
-4. 「ルートはここで合ってる？」と不安なときは**絶対に自己判断で進めず、確認依頼する**

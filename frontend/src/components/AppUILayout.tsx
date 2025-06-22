@@ -54,7 +54,7 @@ const AppUILayout: React.FC = () => {
       {/* 12誘導モード切替ボタン */}
       <button
         onClick={() => set12LeadMode(!is12LeadMode)}
-        className="fixed  bottom-4 left-4 bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded-xl font-bold"
+        className="hidden fixed bottom-4 left-4 bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded-xl font-bold"
       >
         {is12LeadMode ? "Back to Monitor" : "Show 12 Leads"}
       </button>

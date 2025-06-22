@@ -73,14 +73,18 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
 
       ctx.clearRect(0, 0, size.width, size.height);
       ctx.strokeStyle = strokeStyle;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
+
+      let y0 = baseline;
 
       for (let i = 0; i < wave.length; i++) {
         const timeOffsetSec = (wave.length - i) * 5 / 1000; // STEP_MS = 5ms
-        const x = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
-        const y = baseline - wave[i] * gain;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        const x1 = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
+        const y1 = baseline - wave[i] * gain;
+        i === 0 ? ctx.moveTo(x1, y0) : ctx.lineTo(x1, y0);
+        ctx.lineTo(x1, y1);
+        y0 = y1;
       }
 
       ctx.stroke();

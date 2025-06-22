@@ -14,7 +14,7 @@ export const Afl: GraphControlRule = {
   group: 'sinus_status',
   exclusiveGroup: 'AtrialArrhythmia',
   description: 'Blocks A→IA and applies probabilistic conduction from IA to AN. SA node suppressed.',
-  updateGraph: updateGraphWithAflCustomArgs,
+  updateGraph: updateGraphWith_Afl_CustomArgs,
   effects: {
     node: {
       SA: { autofire: false },
@@ -61,7 +61,7 @@ export const Afl: GraphControlRule = {
 }
 
 
-export function updateGraphWithAflCustomArgs(args: Record<string, number>, graph: GraphEngine) {
+export function updateGraphWith_Afl_CustomArgs(args: Record<string, number>, graph: GraphEngine) {
   const f = args.aflWaveFreq;
   const a = args.aflWaveAmp;
   const p = args.aflConductProb;

@@ -1,3 +1,4 @@
+//src/hooks/AppStateContext.tsx
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { RhythmEngine } from '../engine/RhythmEngine';
 import { GraphEngine } from '../engine/GraphEngine';
@@ -119,9 +120,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     if (next.diaBp < 0) next.diaBp = 0;
     if (next.diaBp > next.sysBp) next.diaBp = next.sysBp
+
+    setSimOptions(next);
     simOptionsRef.current = next;
     const graph = graphRef.current;
-    if (graph) updateGraphEngineFromSim(next, graph);
+    if (graph) { updateGraphEngineFromSim(next, graph); }
   };
 
   // Beep/Alarm切替

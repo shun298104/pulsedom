@@ -15,7 +15,7 @@ export interface WaveMeta {
       unit: '%',
       color: '#22d3ee',
       gain: 1.5,
-      baselineRatio: 0.5,
+      baselineRatio: 0.7,
     },
     art: {
       label: 'ART',

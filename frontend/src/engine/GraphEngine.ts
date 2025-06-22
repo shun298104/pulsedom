@@ -8,11 +8,9 @@ import type { PathProps } from './graphs/Path';
 export class GraphEngine {
   private debugLevel: 0 | 1 | 2 | 3 = 0;
   private debugResetTimer: number | null = null;
-  // pathMapをid直アクセス用に
+
   private pathMap: Record<string, Path> = {} as Record<string, Path>;
-  // fromノード起点キャッシュ
   private fromNodesCache: Record<NodeId, Path[]> = {} as Record<NodeId, Path[]>;
-  // toノード起点キャッシュ（既存）
   private toNodesCache: Record<NodeId, Path[]> = {} as Record<NodeId, Path[]>;
 
   private reversePathIndex = new Map<Path, Path>();
@@ -27,35 +25,18 @@ export class GraphEngine {
     this.buildPathCacheAndLinks(pathInstances);
   }
 
-  // O(1)全パス取得
-  public getPaths(): Path[] {
-    return Object.values(this.pathMap);
-  }
-  // O(1)id直取得
-  public getPath(pathId: string): Path | undefined {
-    return this.pathMap[pathId];
-  }
-  public getNode(id: string): Node | undefined {
-    return this.nodes[id];
-  }
+  public getPaths(): Path[] { return Object.values(this.pathMap); }
+  public getPath(pathId: string): Path | undefined { return this.pathMap[pathId]; }
+  public getNode(id: string): Node | undefined { return this.nodes[id]; }
 
-  /** ノードキャッシュとリバースリンクを構築 */
   private buildPathCacheAndLinks(paths: Path[]) {
     const pathMap: Record<string, Path> = {};
-
     for (const path of paths) {
-      // fromノード起点キャッシュ
       (this.fromNodesCache[path.from] ||= []).push(path);
-      // toノード起点キャッシュ（既存UIの互換のため残す）
-      (this.toNodesCache[path.from] ||= []).push(path);
-
-      // id直Map
+      (this.toNodesCache[path.to] ||= []).push(path);
       pathMap[path.id] = path;
     }
-    // メンバに反映
     this.pathMap = pathMap;
-
-    // パスIDでMap構築→reversePathリンク設定
     for (const path of paths) {
       if (path.reversePathId) {
         const reversePath = pathMap[path.reversePathId];
@@ -69,16 +50,13 @@ export class GraphEngine {
     }
   }
 
-  /** fromノードから出る経路を取得（O(1)アクセス） */
   public fromNodes(from: NodeId): Path[] {
     return this.fromNodesCache[from] || [];
   }
-  /** toノードから入る経路を取得（既存API互換） */
-  public toNodes(from: NodeId): Path[] {
-    return this.toNodesCache[from] || [];
+  public toNodes(to: NodeId): Path[] {
+    return this.toNodesCache[to] || [];
   }
 
-  /** デバッグログ */
   private log(level: number, message: string, now: number) {
     if (this.debugLevel <= 2 && (message.includes('LA') || message.includes('LBB') || message.includes('RV') || message.includes('LV') || message.includes('BM') || message.includes('AN'))) return;
     if (this.debugLevel >= level) {
@@ -86,7 +64,6 @@ export class GraphEngine {
     }
   }
 
-  /** デバッグレベルの設定 */
   public setDebugLevel(lvl: 0 | 1 | 2 | 3, autoResetMs?: number) {
     this.debugLevel = lvl;
     if (this.debugResetTimer !== null) clearTimeout(this.debugResetTimer);
@@ -98,33 +75,31 @@ export class GraphEngine {
     }
   }
 
-  /** ノードの最終発火時間を取得 */
   getLastFireTime(nodeId: NodeId): number {
     return this.nodes[nodeId]?.STATE.lastFiredAt ?? -1;
   }
 
-  // 例：Pathに任意のカスタムパラメータを適用
+  // strict: Pathの可変パラメータもCONFIG経由でのみ更新
   public setPathCustomParams(pathId: string, params: { delayMs?: number; amplitude?: number; polarity?: number }) {
     const path = this.getPath(pathId);
     if (path) {
-      if (params.delayMs !== undefined) path.delayMs = params.delayMs;
-      if (params.amplitude !== undefined) path.amplitude = params.amplitude;
-      if (params.polarity !== undefined) path.polarity = params.polarity;
-      // ...必要に応じてPath.updateParams()なども呼ぶ
+      if (params.delayMs !== undefined) path.CONFIG.delayMs = params.delayMs;
+      if (params.amplitude !== undefined) path.CONFIG.amplitude = params.amplitude;
+      if (params.polarity !== undefined) path.CONFIG.polarity = params.polarity;
+      // 必要なら path.updateParams() も呼ぶ（記録に準じて実装）
+      if (path.updateParams) path.updateParams(path.CONFIG.delayMs, path.CONFIG.apdMs, path.CONFIG.polarity);
     }
   }
 
-  /** 経路の最終伝導時間を取得 */
   public getLastConductedAt(pathId: string): number {
-    return this.getPath(pathId)?.lastConductedAt ?? -1;
+    return this.getPath(pathId)?.STATE?.lastConductedAt ?? -1;
   }
 
-  /** 発火スケジュール */
   private scheduleConduction(from: NodeId, now: number) {
     const outgoingPaths = this.fromNodes(from);
 
     for (const path of outgoingPaths) {
-      if (path.blocked) {
+      if (path.CONFIG.blocked) {
         this.log(2, `  📨⛔ ${path.id} is blocked`, now);
         continue;
       }
@@ -133,10 +108,8 @@ export class GraphEngine {
         continue;
       }
 
-      // 伝導遅延を考慮して発火時間を計算
       const fireAt = now + path.getCurrentDelayMs();
-      // pathの不応期を設定（delay後にfireされるため）
-      path.absoluteRefractoryUntil = now + path.refractoryMs;
+      path.STATE.absoluteRefractoryUntil = now + path.CONFIG.refractoryMs;
 
       const alreadyScheduled = this.scheduledFires.some(f => f.via === path.id);
       if (alreadyScheduled) continue;
@@ -148,12 +121,10 @@ export class GraphEngine {
     }
   }
 
-  /** メインのtickループ */
   tick(now: number): string[] {
     if (this.scheduledFires.length > 0) this.log(3, `[TICK] scheduledFires: ${JSON.stringify(this.scheduledFires)}`, now);
     const firingEvents: string[] = [];
 
-    // 自動発火
     for (const node of Object.values(this.nodes)) {
       if (node.CONFIG?.autoFire || node.CONFIG?.forceFiring) {
         if (node.shouldAutoFire(now)) {
@@ -167,7 +138,6 @@ export class GraphEngine {
     }
 
     const earliestMap: Map<NodeId, typeof this.scheduledFires[number]> = new Map();
-
     for (const sched of this.scheduledFires) {
       const prev = earliestMap.get(sched.target);
       if (!prev || sched.fireAt < prev.fireAt) {
@@ -185,7 +155,7 @@ export class GraphEngine {
       }
 
       const selected = earliestMap.get(sched.target);
-      if (!selected) continue; // earliest以外は無視
+      if (!selected) continue;
       this.log(3, `[TICK] Evaluating: target=${sched.target}, via=${sched.via}, fireAt=${sched.fireAt}`, now);
       this.log(3, `[TICK] selected: ${selected ? selected.via : "none"}`, now);
 
@@ -206,11 +176,11 @@ export class GraphEngine {
         if (path) {
           this.log(1, `✅[Path Conducted] ${path.id} : fireAt=${sched.fireAt.toFixed(0)}`, now)
           path.conduct(sched.fireAt);
-          this.log(1, `  [Path Conducted] ${path.id} :  lastConductedAt=${path.lastConductedAt.toFixed(0)}`, now);
+          this.log(1, `  [Path Conducted] ${path.id} :  lastConductedAt=${path.STATE.lastConductedAt?.toFixed(0) ?? -1}`, now);
 
           firingEvents.push(path.id);
-          this.log(2, `    ${path.id}.lastConductedAt = ${Math.round(path.lastConductedAt)}: `, now);
-          this.log(3, `[TICK] path.absoluteRefractoryUntil: ${path.absoluteRefractoryUntil}`, now);
+          this.log(2, `    ${path.id}.lastConductedAt = ${Math.round(path.STATE.lastConductedAt ?? -1)}: `, now);
+          this.log(3, `[TICK] path.absoluteRefractoryUntil: ${path.STATE.absoluteRefractoryUntil}`, now);
         }
 
         this.scheduleConduction(targetNode.id, now);
@@ -224,12 +194,10 @@ export class GraphEngine {
     return firingEvents;
   }
 
-  /** リバースパスを取得 */
   getReversePath(path: Path): Path | undefined {
     return this.reversePathIndex.get(path);
   }
 
-  /** デフォルトのエンジン生成 */
   static createDefaultEngine(debugLevel: 0 | 1 | 2 = 0): GraphEngine {
     return new GraphEngine(defaultNodes, createDefaultPaths(), debugLevel);
   }

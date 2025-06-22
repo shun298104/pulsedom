@@ -53,7 +53,7 @@ export const WBBlock: GraphControlRule = {
   updateGraph: updateGraphWith_WBBlock_CustomArgs,
   effects: {
     path: {
-      'N->NH': { decrementalStep: 25, wenckebachPhenomenon: true },
+      'N->NH': { decrementalStep: 30, wenckebachPhenomenon: true },
     },
   },
   uiControls: [

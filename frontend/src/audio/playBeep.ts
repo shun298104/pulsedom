@@ -1,15 +1,7 @@
 export function calcFrequency(spo2: number | undefined): number {
-  if (spo2 === undefined) return 1108;
-
-  const offset = spo2 - 91 + 5.5;
-// 負のべき乗を防ぐ（下限をつける）
-  const safeOffset = Math.max(offset, -12); // 例: 下限を -12 に制限
-
-  if (spo2 >= 86) {
-    return 440 * Math.pow(2, Math.pow(safeOffset, 1 / 12));
-  } else {
-    return 440 * Math.pow(2, Math.pow(safeOffset, 1 / 24));
-  }
+  if (spo2 === undefined) return 1000;
+  const clamped = Math.max(50, Math.min(spo2, 100)); // 50〜100に制限
+  return 500 + (clamped - 70) * 10; // 70→500Hz、100→800Hz
 }
 
 export function playBeep(audioCtx: AudioContext, spo2?: number) {
