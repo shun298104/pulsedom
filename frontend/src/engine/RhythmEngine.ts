@@ -1,11 +1,12 @@
 // src/engine/RhythmEngine.ts
 import { GraphEngine } from './GraphEngine';
 import { playBeep } from '../audio/playBeep';
-import { ECG_CONFIG, MAX_DELAY } from '../constants/constants';
+import { ECG_CONFIG, MAX_DELAY, STEP_MS } from '../constants/constants';
 import { Path } from './graphs/Path';
 import type { WaveBufferMap } from './WaveBuffer';
 import type { LeadName } from '../constants/leadVectors';
 import { PulseWaveFn } from './generators/generatePulseWave';
+import { BreathEngine } from './BreathEngine';
 
 import { VENTRICULAR_NODES } from '../constants/constants';
 
@@ -21,6 +22,7 @@ export class RhythmEngine {
     spo2: number;
     nibp_sys: number;
     nibp_dia: number;
+    etco2?: number; // オプションでETCO2値も取得
   };
   private bufferRef: React.MutableRefObject<WaveBufferMap>;
   private lastStepTime = 0;
@@ -37,7 +39,8 @@ export class RhythmEngine {
   private c: number = 1.2;
   private sv: number = 70;
   private pulseWaveFn: (t: number) => number = () => 0;
-
+  private breathEngine: BreathEngine;
+  
   constructor({
     graph,
     bufferRef,
@@ -46,6 +49,7 @@ export class RhythmEngine {
     getVitals,
     rr,
     onHrUpdate,
+    breathEngine,
   }: {
     graph: GraphEngine;
     bufferRef: React.MutableRefObject<WaveBufferMap>;
@@ -55,9 +59,11 @@ export class RhythmEngine {
       spo2: number;
       nibp_sys: number;
       nibp_dia: number;
+      etco2?: number; // オプションでETCO2値も取得
     };
     rr?: number;
     onHrUpdate?: (hr: number) => void;
+    breathEngine: BreathEngine;
   }) {
     this.graph = graph;
     this.audioCtx = audioCtx ?? null;
@@ -68,6 +74,7 @@ export class RhythmEngine {
     this.paths = graph.getPaths();
     this.onHrUpdate = onHrUpdate;
     this.lastContractionTime = -3_000;
+    this.breathEngine = breathEngine;
 
     // 初期pulseWaveFn（sdはrr依存で都度計算するのでここは適当でOK）
     this.updatePulseWaveFn();
@@ -87,7 +94,7 @@ export class RhythmEngine {
       r: this.r,
       c: this.c,
       sv: this.sv,
-      sd: sd, // PathのQT補正式と同じ計算で注入！
+      sd: sd,
       dt: 1,
     });
   }
@@ -123,23 +130,11 @@ export class RhythmEngine {
       }
     }
 
-    // 2. ノイズ＆呼吸性ゆらぎを注入
-    const tSec = nowMs / 1000;
-    const NOISE_STDDEV = 0.01; // ノイズ強度（標準偏差、適宜調整）
-    const RESP_RATE = 0.25;    // 呼吸周期 [Hz]（例: 0.25Hz=15回/分）
-    const RESP_AMP = 0.07;     // 呼吸変動振幅（3% of 波形、適宜調整）
-
     for (const lead in voltages) {
-      // ホワイトノイズ（±NOISE_STDDEVの一様分布: 簡易版）
-      const noise = NOISE_STDDEV * (Math.random() * 2 - 1);
-      // 呼吸性ゆらぎ（正弦波modulation）
-      const respMod = 1.0 + RESP_AMP * Math.sin(2 * Math.PI * RESP_RATE * tSec);
-      // 合成
-      const v = voltages[lead as LeadName] * respMod + noise;
+      const v = voltages[lead as LeadName];
       this.pushBuffer(lead as LeadName, v);
     }
   }
-
 
   public setGraph(graph: GraphEngine) {
     this.graph = graph;
@@ -168,17 +163,19 @@ export class RhythmEngine {
     while (currentTime - this.lastStepTime >= ECG_CONFIG.stepMs / 1000) {
       this.lastStepTime += ECG_CONFIG.stepMs / 1000;
       const t = this.lastStepTime;
-      const nowMs = t * 1000;
+      const nowMs = Math.round(t * 1000);
 
       this.updateBuffer(nowMs - MAX_DELAY);
-
       const vitals = this._getVitals?.();
 
-      // 脈波ディレイ（例：120ms）でspo2波形をQRSより遅らせる
       const pulseElapsed = nowMs - this.lastContractionTime; // [ms]
       const spo2 = this.pulseWaveFn(pulseElapsed >= 0 ? pulseElapsed : 0);
-
       this.pushBuffer('spo2', spo2);
+
+      if (nowMs % (3 * STEP_MS) === 0) {
+        const etco2 = this.breathEngine.getEtco2(nowMs);
+        this.pushBuffer('etco2', etco2);
+      }
 
       const firing = this.graph.tick(t * 1000);
       if (this.checkContractionByNodeFiring(firing)) {

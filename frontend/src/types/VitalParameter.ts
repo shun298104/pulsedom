@@ -69,22 +69,29 @@ export class VitalParameter {
     return { level: 'normal', bound: null };
   }
 
-  isCritical(value: number): boolean {
-    return value < this.alarm.critLow || value > this.alarm.critHigh;
+  isCritical(value: number | undefined): boolean {
+    if (value) {
+      return value < this.alarm.critLow || value > this.alarm.critHigh;
+    } else {
+      return false;
+    }
   }
-  isWarning(value: number): boolean {
-    return (
-      (value < this.alarm.warnLow && value >= this.alarm.critLow) ||
-      (value > this.alarm.warnHigh && value <= this.alarm.critHigh)
-    );
+
+  isWarning(value: number | undefined): boolean {
+    if (value) {
+      return (
+        (value < this.alarm.warnLow && value >= this.alarm.critLow) ||
+        (value > this.alarm.warnHigh && value <= this.alarm.critHigh)
+      )
+    } else {
+      return false;
+    }
   }
 
   getColor(): string {
     return this.color || 'text-white';
   }
-
 }
-
 
 export const HR_PARAM = new VitalParameter({
   key: 'hr',
@@ -105,7 +112,7 @@ export const HR_PARAM = new VitalParameter({
 
 export const SPO2_PARAM = new VitalParameter({
   key: 'spo2',
-  label: 'SpO2',
+  label: 'SpO₂',
   unit: '%',
   min: 0,
   max: 100,
@@ -152,11 +159,47 @@ export const NIBP_DIA_PARAM = new VitalParameter({
   color: 'text-orange-400',
 });
 
-export type VitalKey = 'hr' | 'spo2' | 'nibp_sys' | 'nibp_dia';
+export const ETCO2_PARAM = new VitalParameter({
+  key: 'etco2',
+  label: 'EtCO₂',
+  unit: 'mmHg',
+  min: 0,
+  max: 80,
+  decimals: 0,
+  color: 'text-yellow-400',
+
+  alarm: {
+    warnLow: 30,
+    warnHigh: 50,
+    critLow: 0,
+    critHigh: 100,
+  },
+});
+
+export const RESP_PARAM = new VitalParameter({
+  key: 'respRate',
+  label: 'RR',
+  unit: '/min',
+  min: 0,
+  max: 40,
+  decimals: 0,
+  color: 'text-yellow-400',
+
+  alarm: {
+    warnLow: 0,
+    warnHigh: 50,
+    critLow: 0,
+    critHigh: 100,
+  },
+});
+
+export type VitalKey = 'hr' | 'spo2' | 'nibp_sys' | 'nibp_dia' | 'etco2' | 'respRate';
 
 export const vitalParameterMap: Record<string, VitalParameter> = {
   hr: HR_PARAM,
   spo2: SPO2_PARAM,
   nibp_sys: NIBP_SYS_PARAM,
   nibp_dia: NIBP_DIA_PARAM,
+  etco2: ETCO2_PARAM,
+  respRate: RESP_PARAM
 };

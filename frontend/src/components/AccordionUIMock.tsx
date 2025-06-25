@@ -25,7 +25,7 @@ const AccordionUIMock: React.FC = () => {
 
   // ------- 状態更新関数（SimOptions クラス対応） --------
   const updateRate = (
-    node: "sinus" | "junction" | "ventricle",
+    node: "sinus" | "junction" | "ventricle" | "respiration" | "etco2",
     value: number
   ) => {
     const next = new SimOptions(simOptions);
@@ -39,16 +39,22 @@ const AccordionUIMock: React.FC = () => {
       case "ventricle":
         next.ventricleRate = value;
         break;
+      case "respiration":
+        next.respRate = value;
+        break;
+      case "etco2":
+        next.etco2 = value; // ETCO₂はrespirationとは別の値
+        break;
     }
     updateSimOptions(next);
   };
 
   return (
 
-    <div className="space-y-2">
+    <div className="space-y-1">
       <div className="flex justify-between items-center gap-1 px-1">
         <button
-          className={`text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition ${isBeepOn
+          className={`text-xs font-medium tracking-wide px-1 py-1 rounded border border-zinc-400 transition ${isBeepOn
             ? "bg-zinc-300 text-green-700"
             : "hover:bg-zinc-200"
             }`}
@@ -58,7 +64,7 @@ const AccordionUIMock: React.FC = () => {
         </button>
         {/* アラームON/OFFボタン */}
         <button
-          className={`text-xs font-medium tracking-wide px-2 py-1 rounded border border-zinc-400 transition ${isAlarmOn
+          className={`text-xs font-medium tracking-wide px-1 py-1 rounded border border-zinc-400 transition ${isAlarmOn
             ? "bg-zinc-300 text-green-700"
             : "hover:bg-zinc-200"
             }`}
@@ -119,10 +125,10 @@ const AccordionUIMock: React.FC = () => {
           />
         </div>
       </div>
-      <Accordion type="multiple" className="w-full space-y-2">
+      <Accordion type="multiple" className="w-full space-y-1">
         <AccordionItem value="sinus">
           <AccordionTrigger>Sinus Node</AccordionTrigger>
-          <AccordionContent className="space-y-2 text-sm">
+          <AccordionContent className="space-y-1 text-sm">
             <WaveformSlider
               label="Sinus Rate"
               value={simOptions.sinusRate}
@@ -184,6 +190,37 @@ const AccordionUIMock: React.FC = () => {
               digits={0}
               unit="bpm"
               onChange={(v: number) => updateRate("ventricle", v)}
+              colorClass="accent-green-500"
+            />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="respiration">
+          <AccordionTrigger>Respiration</AccordionTrigger>
+          <AccordionContent className="space-y-1">
+            <WaveformSlider
+              label="Respiration Rate"
+              value={simOptions.respRate ?? 12}
+              min={0}
+              max={60}
+              step={1}
+              digits={0}
+              unit="bpm"
+              onChange={(v: number) => updateRate("respiration", v)}
+              colorClass="accent-yellow-400"
+            />
+          </AccordionContent>
+          <AccordionContent className="space-y-1">
+            <WaveformSlider
+              label="ETCO₂"
+              value={simOptions.etco2 ?? 38}
+              min={0}
+              max={80}
+              step={1}
+              digits={0}
+              unit="mmHg"
+              onChange={(v: number) => updateRate("etco2", v)}
+              colorClass="accent-yellow-400"
             />
           </AccordionContent>
         </AccordionItem>

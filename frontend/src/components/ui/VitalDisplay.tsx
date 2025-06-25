@@ -1,10 +1,10 @@
 // src/components/VitalDisplay.tsx
 import React, { useState } from 'react';
-import { VitalParameter } from '../types/VitalParameter';
+import { VitalParameter } from '../../types/VitalParameter';
 
 interface VitalDisplayProps {
   param: VitalParameter;
-  value: number;
+  value?: number;
   display?: string;
   onAlarmChange?: (paramId: string, newLimits: { warnHigh: number; warnLow: number }) => void;
 }

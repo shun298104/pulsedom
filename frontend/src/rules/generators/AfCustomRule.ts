@@ -23,7 +23,7 @@ export const Af: GraphControlRule = {
             'LA->PV1': { block: false },
             'PV1->PV2': { block: false },
             'PV2->LA': { block: false },
-            'IA->AN_fast': { probability: 0.3 },
+            'IA->AN_fast': { probability: 0.3, delayJitterMs: 300},
             'IA->AN_slow_1': { probability: 0.3 },
         },
     },

@@ -136,7 +136,7 @@ export class Path {
 
       const rrFactor = Math.max(0.5, Math.min(1.5, Math.sqrt(rr / 1000)));
       const μ2 = μ1 + (this.CONFIG.apdMs / 1000) * rrFactor;
-      const sigmaL = 0.06 * rrFactor;
+      const sigmaL = 0.07 * rrFactor;
       const sigmaR = 0.04 * rrFactor;
       const sigma2 = nowS <= μ2 ? sigmaL : sigmaR;
       const G2 = -Math.exp(-Math.pow((nowS - μ2) / sigma2, 2)) * (this.CONFIG.polarity ?? 0.1);

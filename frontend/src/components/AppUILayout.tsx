@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import WaveCanvas from './WaveCanvas';
-import VitalDisplay from './VitalDisplay';
-import  AccordionUIMock  from './AccordionUIMock';
+import VitalDisplay from './ui/VitalDisplay';
+import AccordionUIMock from './AccordionUIMock';
 import { PanelRightOpen, PanelRightClose, BellOff } from 'lucide-react';
-import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM } from '../types/VitalParameter';
+import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM, ETCO2_PARAM, RESP_PARAM } from '../types/VitalParameter';
 // import { Graph3D } from './three/Graph3D';
-import saChanIcon from '/public/icons/sa_chan_icon.png';
 import { useAppState } from '../hooks/AppStateContext';
+import { PULSEDOM_VERSION } from '../constants/version';
 
 const leads12 = ["I", "aVR", "V1", "V4", "II", "aVL", "V2", "V5", "III", "aVF", "V3", "V6"];
 
@@ -34,14 +34,6 @@ const AppUILayout: React.FC = () => {
       >
         {isEditorVisible ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
       </button>
-      {/* Dr.さーちゃんボタン（ダミー） */}
-      <button
-        onClick={() => alert('Dr.さーちゃん起動〜🩺（※今はダミー）')}
-        className={`hidden absolute top-2 ${isEditorVisible ? 'right-[312px]' : 'right-[58px]'} w-11 h-11 rounded-full bg-pink-300 hover:bg-pink-400 ring-2 ring-white shadow-md z-50`}
-        title="Ask Dr. Sa-chan"
-      >
-        <img src={saChanIcon} alt="Dr. Sa-chan" className="w-11 h-11 rounded-full" />
-      </button>
       {/* アラーム消音ボタン */}
       <button
         onClick={stopAlarm}
@@ -68,7 +60,7 @@ const AppUILayout: React.FC = () => {
             }`}>
             <span className="pl-4">
               {alarmLevel === 'normal'
-                ? 'Vital Signs Simulator PULSEDOM BETA'
+                ? `Vital Signs Simulator PULSEDOM ${PULSEDOM_VERSION}`
                 : [...alarmMessages]
                   .sort((a) => a.includes('Critical') ? -1 : 1)
                   .map(msg => `[${msg}]`)
@@ -104,6 +96,15 @@ const AppUILayout: React.FC = () => {
               </div>
               <div className=" text-sm text-left col-span-2 sm:order-5 sm:col-span-4 md:order-5 xl:col-span-6">
                 <WaveCanvas bufferRef={bufferRef} signalKey="spo2" label="spo2" />
+              </div>
+              <div className="h-full col-span-1 sm:order-6 md:order-6">
+                <VitalDisplay param={ETCO2_PARAM} value={simOptions.etco2} />
+              </div>
+              <div className="h-full col-span-1 sm:order-7 md:order-7">
+                <VitalDisplay param={RESP_PARAM} value={simOptions.respRate} />
+              </div>
+              <div className=" text-sm text-left col-span-2 sm:order-8 sm:col-span-4 md:order-8 xl:col-span-6">
+                <WaveCanvas bufferRef={bufferRef} signalKey="etco2" label="EtCO₂" />
               </div>
             </div>
           )}

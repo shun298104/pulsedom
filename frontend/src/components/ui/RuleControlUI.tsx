@@ -48,7 +48,7 @@ const RuleControlUI: React.FC<RuleControlUIProps> = ({ controls, values, onChang
   };
 
   return (
-    <div className="flex flex-col gap-2 mt-2 text-xs">
+    <div className="flex flex-col gap-1 mt-1 text-xs">
       {controls.map((ctrl) => {
         switch (ctrl.type) {
           case "slider": {

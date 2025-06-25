@@ -44,7 +44,7 @@ const WaveformSlider: React.FC<WaveformSliderProps> = ({
   };
 
   return (
-    <div className="mb-2">
+    <div className="mb-0">
       <div className="flex justify-between items-center">
         <label className="text-xs font-medium text-gray-700">{label}</label>
         {isEditing ? (

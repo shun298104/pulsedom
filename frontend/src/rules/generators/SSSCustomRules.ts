@@ -1,4 +1,4 @@
-//src/rules/generators/PACsCustomRule.ts
+//src/rules/generators/PACsCustomRules.ts
 
 import { GraphControlRule } from '../GraphControlTypes';
 import { GraphEngine } from '../../engine/GraphEngine';

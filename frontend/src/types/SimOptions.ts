@@ -1,14 +1,16 @@
 // src/types/SimOptions.ts
 import { ruleMap } from '../rules/graphControlRuleList';
 import { graphControlRules, getDefaultOptionsFromRules } from '../rules/graphControlRuleList';
+import { PULSEDOM_VERSION } from '../constants/version';
 
 export type RawSimOptions = {
-  //  statuses: string[];
   hr: number;
   rr: number;
   spo2: number;
   nibp_sys?: number;
   nibp_dia?: number;
+  etco2?: number;
+  respRate?: number; // 呼吸数（オプション）
 
   sinus_rate: number;
   junction_rate: number;
@@ -20,6 +22,7 @@ export type RawSimOptions = {
   conduction_status?: string;
 
   options: Record<string, string | number>;
+  version?: string;
 
   pacing?: {
     mode: 'OFF' | 'AOO' | 'VOO' | 'VVI' | 'DDD';
@@ -33,20 +36,20 @@ export type RawSimOptions = {
 export class SimOptions {
 
   constructor(raw: RawSimOptions | SimOptions) {
-  if ("getRaw" in raw) {
-    // SimOptionsから複製するケース
-    this.rawData = raw.getRaw(); // ✅ rawDataは数値系だけ
-    this.status = { ...raw.status }; // ✅ ステータスも明示的にコピー
-  } else {
-    // RawSimOptionsから初期化するケース
-    this.rawData = raw;
-    this.status = {};
+    if ("getRaw" in raw) {
+      // SimOptionsから複製するケース
+      this.rawData = raw.getRaw(); // ✅ rawDataは数値系だけ
+      this.status = { ...raw.status }; // ✅ ステータスも明示的にコピー
+    } else {
+      // RawSimOptionsから初期化するケース
+      this.rawData = raw;
+      this.status = {};
 
-    if (raw.sinus_status) this.status["sinus_status"] = raw.sinus_status;
-    if (raw.junction_status) this.status["junction_status"] = raw.junction_status;
-    if (raw.ventricle_status) this.status["ventricle_status"] = raw.ventricle_status;
-    
-  }
+      if (raw.sinus_status) this.status["sinus_status"] = raw.sinus_status;
+      if (raw.junction_status) this.status["junction_status"] = raw.junction_status;
+      if (raw.ventricle_status) this.status["ventricle_status"] = raw.ventricle_status;
+
+    }
   }
 
   private rawData: RawSimOptions;
@@ -54,6 +57,7 @@ export class SimOptions {
 
   getRaw(): RawSimOptions {
     return {
+      version: PULSEDOM_VERSION,
       ...this.rawData,
     };
   }
@@ -141,16 +145,11 @@ export class SimOptions {
   get ventricleRate() { return this.rawData.ventricle_rate; }
   set ventricleRate(val: number) { this.rawData.ventricle_rate = val; }
 
-//  set sinus_status(val: string | undefined) { this.rawData.sinus_status = val; }
-//  set junction_status(val: string | undefined) { this.rawData.junction_status = val; }
-//  set ventricle_status(val: string | undefined) { this.rawData.ventricle_status = val; }
-//  set conduction_status(val: string | undefined) { this.rawData.conduction_status = val; }
+  get etco2(): number | undefined { return this.rawData.etco2; }
+  set etco2(val: number | undefined) { this.rawData.etco2 = val; }
 
-//  get sinus_status(): string | undefined { return this.rawData.sinus_status; }
-//  get junction_status(): string | undefined { return this.rawData.junction_status; }
-//  get ventricle_status(): string | undefined { return this.rawData.ventricle_status; }
-//  get conduction_status(): string | undefined { return this.rawData.conduction_status; }
-
+  get respRate(): number | undefined { return this.rawData.respRate; }
+  set respRate(val: number | undefined) { this.rawData.respRate = val; }
 }
 
 export function createDefaultSimOptions(): SimOptions {
@@ -161,9 +160,15 @@ export function createDefaultSimOptions(): SimOptions {
     spo2: 98,
     nibp_sys: 120,
     nibp_dia: 80,
+    etco2: 38,
+    respRate: 12,
     sinus_rate: 80,
     junction_rate: 40,
     ventricle_rate: 30,
+    sinus_status: 'NSR',
+    junction_status: 'Normal',
+    conduction_status: 'Normal',
+    ventricle_status: 'Normal',
 
     options: defaultOptions,
 

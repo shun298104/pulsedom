@@ -4,7 +4,7 @@ import { Af } from './generators/AfCustomRule';
 import { Afl } from './generators/AflCustomRule';
 import { CAVB, normalConduction, WBBlock, M2Block, firstAVB } from './generators/AVConductionCustomRule';
 import { PACs } from './generators/PACsCustomRule'
-import { SAB2 } from './generators/SSSCustomRule'
+import { SAB2 } from './generators/SSSCustomRules'
 import { junc_Normal, AVNRT } from './generators/JunctionCustomRule';
 
 export const graphControlRules: GraphControlRule[] = [
@@ -18,7 +18,8 @@ export const graphControlRules: GraphControlRule[] = [
       node: {
         SA: { autofire: true },
         His: { refractory: 275 },
-        IA: { refractory: 150 }
+        IA: { refractory: 150 },
+        N: { jitterMs: 0 }, // ノードのjitterを設定
 
       },
       path: {
@@ -31,7 +32,7 @@ export const graphControlRules: GraphControlRule[] = [
         'LA->IA': { block: true, },
         //rest AFL
         'IA->CTI1': { block: true, },
-        'IA->AN_fast': { probability: undefined },
+        'IA->AN_fast': { probability: undefined, delayJitterMs: 0 },
         'IA->AN_slow_1': { probability: undefined },
       }
     }

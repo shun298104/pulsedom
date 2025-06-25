@@ -1,4 +1,4 @@
-//src/engine/UpdateGraph.ts
+//src/engine/GraphControl.ts
 
 import { graphControlRules } from '../rules/graphControlRuleList';
 import type { SimOptions } from '../types/SimOptions';

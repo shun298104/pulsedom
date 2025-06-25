@@ -26,6 +26,7 @@ export type NodeEffect = Partial<{
   rate: number;
   refractory: number;
   forceFiring: boolean;
+  jitterMs: number; // ノードのjitterを設定
 
   // ectopicOptions の設定は将来的にここに統合できる
   'ectopic.enabled': boolean;
