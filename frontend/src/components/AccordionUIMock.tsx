@@ -229,7 +229,7 @@ const AccordionUIMock: React.FC = () => {
         className="abosolute bottom-2 text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition hover:bg-zinc-200"
         onClick={() => {
           const encoded = encodeSimOptionsToURL(simOptions);
-          const url = `${window.location.origin}?sim=${encoded}`;
+          const url = `${window.location.origin}/pulsedom/?sim=${encoded}`;
           navigator.clipboard.writeText(url)
             .then(() => alert("✅ URL copied!"))
             .catch(() => alert("❌ Failed to copy URL"));
