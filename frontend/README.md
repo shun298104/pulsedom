@@ -5,10 +5,11 @@
 # 1. データ構造
 ## 1.1 ◾️ SimOptions　//src/types/SimOptions.ts
 シミュレーション状態およびユーザー選択内容を一元管理するクラス。
+### 1.1.1 主なプロパティ
 sinus_status, junction_status, ventricle_status, conduction_status: GraphControlRule型で現在のリズム状態を保持
 sinus_rate, junction_rate, ventricle_rate, hr, spo2, nibp_sys, nibp_dia, etcos, respRateなどVS基本データを管理
 rawData.options: GraphControlRuleで定義された拡張オプション（Record<string, number>）を動的格納
-### 1.1.1 主なメソッド
+### 1.1.2 主なメソッド
 getOption(key: string), setOption(key: string, value: string | number), getStatus(group: string), clone(), getRaw(), setExtendedOption(status: string, key: string, value: string | number), getOptionsForStatus(status: string)
 getStatuses(): UI用, statuses(): GCに渡す
 
