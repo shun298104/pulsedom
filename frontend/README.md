@@ -8,7 +8,7 @@
 sinus_status, junction_status, ventricle_status, conduction_status: GraphControlRule型で現在のリズム状態を保持
 sinus_rate, junction_rate, ventricle_rate, hr, spo2, nibp_sys, nibp_dia, etcos, respRateなどVS基本データを管理
 rawData.options: GraphControlRuleで定義された拡張オプション（Record<string, number>）を動的格納
-### 主なメソッド
+### 1.1.1 主なメソッド
 getOption(key: string), setOption(key: string, value: string | number), getStatus(group: string), clone(), getRaw(), setExtendedOption(status: string, key: string, value: string | number), getOptionsForStatus(status: string)
 getStatuses(): UI用, statuses(): GCに渡す
 
@@ -22,30 +22,30 @@ SimOptions.rawDataキーとバインドして値参照
 
 ## 1.3 ◾️ Node // src/types/NodeTypes.ts
 解剖学的ユニット（洞結節、房室結節、His束、心室など）を表現。
-### 基本属性:
+### 1.3.1 基本属性:
 id, bpm, primaryRefractoryMs, x, y, z（位置座標: 空間原点はAV-His結節（X=左, Y=足側, Z=胸前））
 **CONFIG:**
 autoFire, forceFiring, refractoryMs, ectopic_enabled, ectopic_probability, ectopic_bpmFactor, burst_enabled, burst_maxCount, burst_intervalMs, jitterMs 等
 **STATE:**
 lastFiredAt, nextFiringAt, burst_counter 等
-### メソッド:
+### 1.3.2 メソッド:
 setConfig(), getRefractoryMs(), shouldAutoFire(), setNextFiringAt(), isRefractory() など
 ※CONFIGはGC経由のみ編集、STATEはGE進行中のみ編集。責務分離厳守。
 
 ## 1.4 ◾️ Path // src/engine/graphs/Path.ts
 ノード間の伝導路を表現するクラス。属性区分は以下の3つで厳密分離：
 amplitudeは常に正値、方向性はベクトル内積で決定、polarityはT波極性
-### 【基本属性（Path直下／不変属性）】
+### 1.4.1【基本属性（Path直下／不変属性）】
 id: パスID, from: 出発ノードID, to: 到着ノードID, reversePathId: 逆行伝導ペアパスID
 **CONFIG:**（GraphControlでのみ編集）
 delayMs: 伝導遅延 [ms], refractoryMs: 不応期 [ms], apdMs: 活動電位持続時間 [ms], amplitude: 振幅, polarity: T波極性, priority: 優先度, blocked: ブロック状態, conductionProbability: 伝導確率, delayJitterMs: 遅延ジッター, decrementalStep: 減衰ステップ, wenckebachPhenomenon: ウェンケバッハ現象フラグ
 **STATE:**（GraphEngineのみ編集）
 lastConductedAt: 最終伝導時刻 [ms/tick], absoluteRefractoryUntil: 絶対不応期終了時刻, decrementalMs: 減衰状態 [ms], pending: 伝導予定フラグや一時ステータス（必要に応じて拡張）
-### 【主なメソッド】
+### 1.4.2 【主なメソッド】
 setConfig(newConfig), setState(newState)
 getCurrentDelayMs(), conduct(), canConduct()
 getBaseWave(), getVoltages(), getDotFactor() など
-### 【設計原則】
+### 1.4.3 【設計原則】
 基本属性は絶対不変、CONFIG/STATEは責任分離、外部からの直接STATE編集は禁止（GE経由のみ）
 メソッドで副作用を伴う操作も責任区分厳守
 
@@ -56,10 +56,10 @@ effects: node/pathのPartial書き換え、setOptionsによるSimOptionsオプ�
 uiControls: UI展開要素
 exclusiveGroup: 排他制御グループ
 updateGraph: グラフ動的更新用ハンドラー
-### □graphControlRuleList //src/rules/graphControlRuleList.ts
+### 1.5.1 graphControlRuleList //src/rules/graphControlRuleList.ts
 カスタムルールをimportしてGraphControlRuleを列記したリスト。
 **StatusButtons**はリストを参照して不整脈などのボタン、およびその**拡張オプション(extendedOptions)**を生成する。
-### カスタムルール         //src/rules/generators/*
+### 1.5.2 カスタムルール         //src/rules/generators/*
 GraphControlRuleにしたがって、不整脈などのオプションを記載する。
 AfCustomrule、AFLCutomRule、SSSCutomRulesなど。
 ***設計ポイント*** 
@@ -88,9 +88,9 @@ calculateLastRR()で直近RR間隔を計算しthis.rrへ保存
 SPO2/ART波形の生成・Buffer格納
 REが直接グラフを書き換えることはない
 GEで困難な現象（VF等）を補助する可能性あり
-### □generatePulseWave  // src/engine/generators/generatePulseWave.ts
+### 2.2.1 generatePulseWave  // src/engine/generators/generatePulseWave.ts
 脈波を生成するモジュール、REから呼ばれる。
-### □generateEtco2Wave　// src/engine/generators/generateEtco2Wave.ts
+### 2.2.2 generateEtco2Wave　// src/engine/generators/generateEtco2Wave.ts
 カプノグラムを生成するモジュール、REから呼ばれる。
 呼吸パターンはBEの責務。
 
@@ -115,27 +115,27 @@ ETCO₂波形の周期再生を担う補助エンジン
 # 3. UI構成
 PULSEDOMのUIは「全グローバル状態をContextで一元管理し、propsバケツリレーを廃止する」方針で実装されています。
 主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得・操作できます。
-### App（App.tsx + AppUILayout.tsx）// src/App.tsx  src/components/AppUILayout.tsx
+## 3.1 App（App.tsx + AppUILayout.tsx）// src/App.tsx  src/components/AppUILayout.tsx
 グローバル状態（SimOptions、アラームOn/Off、Beep On/Off、バッファ等）は AppStateContext で一元管理
 すべての下層UIは Context から値やハンドラを直接取得し、propsで渡す必要がない
 GraphEngine/RhythmEngineの生成、updateGraphEngineFromSim()による初期化
 RhythmEngine.step() を requestAnimationFrame() で駆動
 アラーム制御（評価・鳴動・ミュート）もContext経由
 ESCキーで一時停止可能
-### Accordion     // src/components/AccodionUIMock.tsx
+## 3.2 Accordion     // src/components/AccodionUIMock.tsx
 サイドパネルUI。全ての状態は Context から直接取得
 スライダーや状態ボタン、ルールUIなどを格納
 下層の WaveformSlider, StatusButtons もContext取得・更新
-### StatusButtons // src/components/ui/StatusButtons.tsx
+## 3.3 StatusButtons // src/components/ui/StatusButtons.tsx
 GraphControlGroup単位のボタンUI
 SimOptionsや各種statusは Context から取得・即時反映
-### RuleControlUI // src/components/ui/RuleControlUI.tsx
+## 3.4 RuleControlUI // src/components/ui/RuleControlUI.tsx
 rule.uiControls[]を自動でスライダー等に展開
 SimOptions更新も Context 取得
-### WaveCanvas    // src/components/WaveCanvas.tsx
+## 3.5 WaveCanvas    // src/components/WaveCanvas.tsx
 バッファ（bufferRef）は Context で管理
 心電図やバイタル波形の描画canvas
-### VitalDisplay  // src/components/VitalDisplay.tsx
+## 3.6 VitalDisplay  // src/components/VitalDisplay.tsx
 VS単位の表示・アラームUIコンポーネント
 値のフォーマット・色分け・異常判定をVitalParameterに基づいて表示
 アラーム上限・下限はモーダルから直接編集可能（即時反映）
