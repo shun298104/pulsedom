@@ -59,7 +59,6 @@ export class BreathEngine {
      * 呼吸設定の更新（次周期から反映）
      */
     public update(params: { respRate?: number; etco2?: number }) {
-        console.log('[update] 呼吸設定更新: params:', params);
         if (params.respRate !== undefined) this.respRate = params.respRate;
         if (params.etco2 !== undefined) this.etco2 = params.etco2;
 
@@ -72,6 +71,5 @@ export class BreathEngine {
             iiEndValue,
             durationMs: this.nextDurationMs,
         });
-        console.log('[update] pendingWaveFn/pendingDurationMs更新:', this.nextWaveFn, this.nextDurationMs);
     }
 }

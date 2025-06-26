@@ -38,13 +38,13 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, display }) =>
   return (
     <div className={`relative select-none rounded-md p-4 shadow-xl ${getBgColorClass()} ${getTextColor()} h-full flex flex-col justify-between`}>
       {/* ラベル（上部中央） */}
-      <div className={`top-2 text-lg font-semibold mb-1 ${getTextColor()}`}>
+      <div className={`top-2 text-base font-semibold mb-1 ${getTextColor()}  lg:text-lg`}>
         {param.label}
       </div>
 
       {/* アラーム範囲（右上） */}
       <div
-        className={`absolute top-2 right-2 text-sm font-bold cursor-pointer text-right ${getTextColor()}`}
+        className={`absolute top-2 right-2 text-xs font-bold cursor-pointer text-right ${getTextColor()} lg:text-sm`}
         onClick={() => setIsModalOpen(true)}
       >
         <div>{param.alarm.warnHigh}</div>
@@ -52,19 +52,19 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, display }) =>
       </div>
 
       {/* 単位（右下） */}
-      <div className={`absolute bottom-2 right-2 text-xs font-bold ${getTextColor()}`}      >
+      <div className={`absolute bottom-2 right-2 text-xs font-bold ${getTextColor()} lg:text-sm`}>
         {param.unit && `[${param.unit}]`}
       </div>
 
       {/* メイン数値 + 単位 */}
       <div className="flex items-end justify-center relative">
-        <span className={`text-6xl font-mono tabular-nums text-right block ${getTextColor()}`}>
+        <span className={`text-5xl font-mono tabular-nums text-right block ${getTextColor()} lg:text-6xl`}>
           {display ?? param.format(value)}
         </span>
 
         {param.key === 'nibp_dia' ? (
           <div
-            className={`absolute right-full text-6xl font-mono leading-none ${getTextColor()}`}
+            className={`absolute right-full text-5xl font-mono leading-none ${getTextColor()} lg:text-6xl`}
             style={{
               top: '45%',
               transform: 'translate(0.4rem, -50%)',
