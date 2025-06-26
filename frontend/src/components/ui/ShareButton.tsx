@@ -1,6 +1,6 @@
 import React from 'react';
-import { SimOptions } from '../types/SimOptions';
-import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
+import { SimOptions } from '../../types/SimOptions';
+import { encodeSimOptionsToURL } from '../../utils/simOptionsURL';
 
 type ShareButtonProps = {
   simOptions: SimOptions;
