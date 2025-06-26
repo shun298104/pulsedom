@@ -3,7 +3,7 @@
 - さーちゃん（GPT Dev Assistant, ギャル）
 
 # 1. データ構造
-## ◾️ SimOptions　//src/types/SimOptions.ts
+## 1.1 ◾️ SimOptions　//src/types/SimOptions.ts
 シミュレーション状態およびユーザー選択内容を一元管理するクラス。
 sinus_status, junction_status, ventricle_status, conduction_status: GraphControlRule型で現在のリズム状態を保持
 sinus_rate, junction_rate, ventricle_rate, hr, spo2, nibp_sys, nibp_dia, etcos, respRateなどVS基本データを管理
@@ -12,7 +12,7 @@ rawData.options: GraphControlRuleで定義された拡張オプション（Recor
 getOption(key: string), setOption(key: string, value: string | number), getStatus(group: string), clone(), getRaw(), setExtendedOption(status: string, key: string, value: string | number), getOptionsForStatus(status: string)
 getStatuses(): UI用, statuses(): GCに渡す
 
-## ◾️ VitalParameter // src/models/VitalParameter.ts
+## 1.2 ◾️ VitalParameter // src/models/VitalParameter.ts
 バイタル（心拍数、SpO₂、収縮期/拡張期血圧など）の表示・アラーム評価用クラス。
 min/maxによる値クランプ、UIスケーリング
 format(value)による表示整形
@@ -20,7 +20,7 @@ warnLow/warnHigh, critLow/critHighでnormal/warning/critical段階判定
 Tailwind CSSクラスで各パラメータごとに色指定
 SimOptions.rawDataキーとバインドして値参照
 
-## ◾️ Node // src/types/NodeTypes.ts
+## 1.3 ◾️ Node // src/types/NodeTypes.ts
 解剖学的ユニット（洞結節、房室結節、His束、心室など）を表現。
 ### 基本属性:
 id, bpm, primaryRefractoryMs, x, y, z（位置座標: 空間原点はAV-His結節（X=左, Y=足側, Z=胸前））
@@ -32,7 +32,7 @@ lastFiredAt, nextFiringAt, burst_counter 等
 setConfig(), getRefractoryMs(), shouldAutoFire(), setNextFiringAt(), isRefractory() など
 ※CONFIGはGC経由のみ編集、STATEはGE進行中のみ編集。責務分離厳守。
 
-## ◾️ Path // src/engine/graphs/Path.ts
+## 1.4 ◾️ Path // src/engine/graphs/Path.ts
 ノード間の伝導路を表現するクラス。属性区分は以下の3つで厳密分離：
 amplitudeは常に正値、方向性はベクトル内積で決定、polarityはT波極性
 ### 【基本属性（Path直下／不変属性）】
@@ -49,7 +49,7 @@ getBaseWave(), getVoltages(), getDotFactor() など
 基本属性は絶対不変、CONFIG/STATEは責任分離、外部からの直接STATE編集は禁止（GE経由のみ）
 メソッドで副作用を伴う操作も責任区分厳守
 
-## ◾️ GraphControlRule //src/types/GraphControlTypes.ts
+## 1.5 ◾️ GraphControlRule //src/types/GraphControlTypes.ts
 心電図リズムや異常伝導など状態変化を引き起こすルール定義。
 id: 状態ID（例: 'Af', 'AFL', 'SSS3'）
 effects: node/pathのPartial書き換え、setOptionsによるSimOptionsオプション変更
@@ -66,20 +66,20 @@ AfCustomrule、AFLCutomRule、SSSCutomRulesなど。
 ルールに書かれた内容のみが唯一の真実（UIやSimOptionsは単なる記録係）
 GC（GraphControl）がeffectsやupdateGraphでグラフへ反映
 
-## ◾️ VitalParameter // src/models/VitalParameter.ts
+## 1.6 ◾️ VitalParameter // src/models/VitalParameter.ts
 バイタル値の単位・表示整形・アラーム判定を担うクラス
 min/maxによる値クランプ、format()による整形、getStatus()でnormal/warning/criticalを判定
 SimOptions.rawDataの各キーに対応し、VSごとに色・閾値・小数桁数を定義
 vitalParameterMapで全パラメータを一括管理（hr, spo2, nibp_sys, nibp_dia, etco2, respRate）
 
 # 2. アルゴリズム構成
-## ◾️ GraphEngine (GE)　// src/engine/GraphEngine.ts
+## 2.1 ◾️ GraphEngine (GE)　// src/engine/GraphEngine.ts
 時間進行（tick）に沿った興奮伝導のシミュレーション担当
 scheduledFiresによる伝導遅延・不応期管理
 Path単位での伝導判定、発火・ブロック・伝導イベントを記録
 STATEはGE進行中のみ更新、CONFIGへの干渉は不可
 
-## ◾️ RhythmEngine (RE)　// src/engine/RhythmEngine.ts
+## 2.2 ◾️ RhythmEngine (RE)　// src/engine/RhythmEngine.ts
 GEのtick()を駆動する
 getVoltageAt(t)で全アクティブwaveformを合成しjitter処理を加えてBufferに格納
 checkContractionByNodeFiring()で収縮期を判定し、心拍数を計算・UIへコールバック
@@ -94,19 +94,19 @@ GEで困難な現象（VF等）を補助する可能性あり
 カプノグラムを生成するモジュール、REから呼ばれる。
 呼吸パターンはBEの責務。
 
-## ◾️ GraphControl (GC) //src/engine/GraphControl.ts
+## 2.3 ◾️ GraphControl (GC) //src/engine/GraphControl.ts
 GraphControlRule[]に従った宣言的制御ロジックの中核
 状態論理・UI制御・effects反映を担当し、グラフシミュレーションには関与しない
 updateGraphEngineFromSim(sim): SimOptions→GE反映のためのメソッド
 ルールに沿ってグラフを書き換えるときのみGCがCONFIGに干渉可
 
-## ◾️ AlarmController (AC) // src/lib/AlarmController.ts
+## 2.4 ◾️ AlarmController (AC) // src/lib/AlarmController.ts
 VS値に応じたアラームレベル判定・鳴動・ミュート管理
 evaluate(raw: RawSimOptions): 各VSをVitalParameter.getStatus()で評価し、状態レベル判定
 criticalは3秒で自動再鳴動、warningは停止で完全ミュート（再発なし）
 lastStatusesにより状態変化のみアラームを更新
 
-## ◾️ BreathEngine (BE) 　// src/engine/BreathEngine.ts
+## 2.5 ◾️ BreathEngine (BE) 　// src/engine/BreathEngine.ts
 ETCO₂波形の周期再生を担う補助エンジン
 呼吸数（respRate）とETCO₂終末値（etco2）から周期関数 (t: number) => mmHg を生成
 周期再生関数は getEtco2(t) で取得し、RhythmEngineから呼び出される
@@ -144,18 +144,18 @@ VS単位の表示・アラームUIコンポーネント
 GraphControlRuleこそ「唯一の真実」UIはルールで定義された状態だけを反映。
 全状態・グループ・排他・意味付けはGraphControlRuleで宣言的に記述する。SimOptionsは単なる記録。
 
-## 責務分離厳守
+## 4.1 責務分離厳守
 Node = 自動能＋不応期
 Path = 伝導＋波形合成
 単位はすべてms基準（内部的な秒処理もcanvas描画時に換算）
 ルール生成は関数型で、定義のミューテーションを避ける
 拡張（PAC, PVC, VF, 12誘導, ペーシングモード等）もGC起点で制御
 
-## パス衝突ポリシー
+## 4.2 パス衝突ポリシー
 multipath衝突はNodeでMAX_DELAY60msまで待って最も早く到達するパス優先、ほかは不応
 現状はreversePathによるfull block方式
 
-## 責任分離サマリ
+## 4.3 責任分離サマリ
 Node/Pathの**CONFIG**はGCが管理、**STATE**はGEまたは伝導時に自己管理
 
 # 5. ディレクトリマップ
