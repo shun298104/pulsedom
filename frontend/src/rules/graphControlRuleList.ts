@@ -3,9 +3,9 @@ import type { GraphControlRule } from './GraphControlTypes';
 import { Af } from './generators/AfCustomRule';
 import { Afl } from './generators/AflCustomRule';
 import { CAVB, normalConduction, WBBlock, M2Block, firstAVB } from './generators/AVConductionCustomRule';
-import { PACs } from './generators/PACsCustomRule'
 import { SAB2 } from './generators/SSSCustomRules'
-import { junc_Normal, AVNRT } from './generators/JunctionCustomRule';
+//import { PACs } from './generators/PACsCustomRule'
+//import { junc_Normal, AVNRT } from './generators/JunctionCustomRule';
 
 export const graphControlRules: GraphControlRule[] = [
   {

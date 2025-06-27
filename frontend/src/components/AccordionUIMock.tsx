@@ -25,7 +25,7 @@ const AccordionUIMock: React.FC = () => {
 
   // ------- 状態更新関数（SimOptions クラス対応） --------
   const updateRate = (
-    node: "sinus" | "junction" | "ventricle" | "respiration" | "etco2",
+    node: "sinus" | "junction" | "ventricle" | "respiration" | "etco2" | "pi",
     value: number
   ) => {
     const next = new SimOptions(simOptions);
@@ -44,6 +44,9 @@ const AccordionUIMock: React.FC = () => {
         break;
       case "etco2":
         next.etco2 = value; // ETCO₂はrespirationとは別の値
+        break;
+      case "pi":
+        next.pi = value; // パルス振幅（オプション）
         break;
     }
     updateSimOptions(next);
@@ -75,7 +78,7 @@ const AccordionUIMock: React.FC = () => {
       </div>
 
       <WaveformSlider
-        label="SpO₂ (%)"
+        label="SpO₂"
         value={simOptions.spo2}
         min={50}
         max={100}
@@ -199,6 +202,32 @@ const AccordionUIMock: React.FC = () => {
           <AccordionTrigger>Respiration</AccordionTrigger>
           <AccordionContent className="space-y-1">
             <WaveformSlider
+              label="SpO₂"
+              value={simOptions.spo2}
+              min={50}
+              max={100}
+              step={1}
+              digits={0}
+              unit="%"
+              onChange={(v: number) => {
+                const next = new SimOptions(simOptions);
+                next.spo2 = v;
+                updateSimOptions(next);
+              }}
+              colorClass="accent-cyan-600"
+            />
+            <WaveformSlider
+              label="perfusion index"
+              value={simOptions.pi ?? 0.2}
+              min={0.1}
+              max={4}
+              step={0.1}
+              digits={1}
+              unit=""
+              onChange={(v: number) => updateRate("pi", v)}
+              colorClass="accent-cyan-600"
+            />
+            <WaveformSlider
               label="Respiration Rate"
               value={simOptions.respRate ?? 12}
               min={0}
@@ -209,8 +238,6 @@ const AccordionUIMock: React.FC = () => {
               onChange={(v: number) => updateRate("respiration", v)}
               colorClass="accent-yellow-400"
             />
-          </AccordionContent>
-          <AccordionContent className="space-y-1">
             <WaveformSlider
               label="ETCO₂"
               value={simOptions.etco2 ?? 38}

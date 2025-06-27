@@ -1,5 +1,4 @@
 // src/types/SimOptions.ts
-import { ruleMap } from '../rules/graphControlRuleList';
 import { graphControlRules, getDefaultOptionsFromRules } from '../rules/graphControlRuleList';
 import { PULSEDOM_VERSION } from '../constants/version';
 
@@ -7,6 +6,7 @@ export type RawSimOptions = {
   hr: number;
   rr: number;
   spo2: number;
+  pi: number; // パルス振幅（オプション）
   nibp_sys?: number;
   nibp_dia?: number;
   etco2?: number;
@@ -15,11 +15,6 @@ export type RawSimOptions = {
   sinus_rate: number;
   junction_rate: number;
   ventricle_rate: number;
-
-  sinus_status?: string;
-  junction_status?: string;
-  ventricle_status?: string;
-  conduction_status?: string;
 
   options: Record<string, string | number>;
   version?: string;
@@ -31,26 +26,21 @@ export type RawSimOptions = {
     avDelay: number;
   };
   conductionRate?: string;
+  status?: Record<string, string>; 
 };
 
 export class SimOptions {
 
   constructor(raw: RawSimOptions | SimOptions) {
     if ("getRaw" in raw) {
-      // SimOptionsから複製するケース
-      this.rawData = raw.getRaw(); // ✅ rawDataは数値系だけ
-      this.status = { ...raw.status }; // ✅ ステータスも明示的にコピー
+      this.rawData = raw.getRaw();
+      this.status = { ...raw.status };
     } else {
-      // RawSimOptionsから初期化するケース
       this.rawData = raw;
       this.status = {};
-
-      if (raw.sinus_status) this.status["sinus_status"] = raw.sinus_status;
-      if (raw.junction_status) this.status["junction_status"] = raw.junction_status;
-      if (raw.ventricle_status) this.status["ventricle_status"] = raw.ventricle_status;
-
     }
   }
+
 
   private rawData: RawSimOptions;
   private status: Record<string, string> = {};
@@ -59,6 +49,7 @@ export class SimOptions {
     return {
       version: PULSEDOM_VERSION,
       ...this.rawData,
+      status: { ...this.status },
     };
   }
 
@@ -72,7 +63,7 @@ export class SimOptions {
   }
 
   setExtendedOption(status: string, key: string, value: string | number) {
-    const fullKey = `${status.toLowerCase()}.${key}`; // ✅ prefixだけ小文字
+    const fullKey = `${status.toLowerCase()}.${key}`; 
     this.setOption(fullKey, value);
   }
 
@@ -99,23 +90,6 @@ export class SimOptions {
     this.status[group] = id;
   }
 
-  /** 排他グループ処理を含む安全なセット（上書き） 使ってないけど念のため*/
-  public pushStatus(group: string, id: string): void {
-    const rule = ruleMap[id];
-    if (!rule) return;
-
-    // 排他グループを持つ場合、競合するstatusを削除
-    if (rule.exclusiveGroup) {
-      for (const key in this.status) {
-        const currentRule = ruleMap[this.status[key]];
-        if (currentRule?.exclusiveGroup === rule.exclusiveGroup) {
-          delete this.status[key];
-        }
-      }
-    }
-    this.status[group] = id;
-  }
-
   /** statusを取得（UI用） */
   public getStatus(group: string): string | undefined {
     return this.status[group];
@@ -129,6 +103,9 @@ export class SimOptions {
 
   get spo2(): number { return this.rawData.spo2 ?? 98; }
   set spo2(val: number) { this.rawData.spo2 = val; }
+
+  get pi(): number { return this.rawData.pi ?? 0.2; }
+  set pi(val: number) { this.rawData.pi = val; }
 
   get sysBp(): number { return this.rawData.nibp_sys ?? 120; }
   set sysBp(val: number) { this.rawData.nibp_sys = val; }
@@ -158,6 +135,7 @@ export function createDefaultSimOptions(): SimOptions {
     hr: 80,
     rr: 750,
     spo2: 98,
+    pi: 2,
     nibp_sys: 120,
     nibp_dia: 80,
     etco2: 38,
@@ -165,10 +143,6 @@ export function createDefaultSimOptions(): SimOptions {
     sinus_rate: 80,
     junction_rate: 40,
     ventricle_rate: 30,
-    sinus_status: 'NSR',
-    junction_status: 'Normal',
-    conduction_status: 'Normal',
-    ventricle_status: 'Normal',
 
     options: defaultOptions,
 
@@ -178,6 +152,12 @@ export function createDefaultSimOptions(): SimOptions {
       upperRateLimit: 120,
       avDelay: 120,
     },
+    status: {
+      sinus_status: 'NSR',
+      junction_status: 'Normal',
+      conduction_status: 'Normal',
+      ventricle_status: 'Normal',
+    }
   });
 }
 

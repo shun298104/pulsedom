@@ -1,7 +1,5 @@
-// src/utils/calculateDotFactors.ts
 import { vec3, mat4 } from 'gl-matrix';
 import type { Node } from '../types/NodeTypes';
-import type { Path } from '../engine/graphs/Path';
 
 // ──────────────────────────────
 // 電極ベクトル（cm）
@@ -48,7 +46,6 @@ export type LeadName =
  */
 
 export function calculateDotFactors(
-    path: Path,
     fromNode: Node,
     toNode: Node,
 ): Record<LeadName, number> {

@@ -1,4 +1,9 @@
 # Changelog
+## [v0.9.2] - 2025-06-27
+ETCO2やRRの変更ををBEでpendingするように設計
+simoptionsURLでstatusが復元されないバグを修正
+PI(perfusion index)を実装、心周期はREの責務でpendingを実装
+wavecanvasのリファクタで計算量を削減
 
 ## [v0.9.1] - 2025-06-23
 ### Added

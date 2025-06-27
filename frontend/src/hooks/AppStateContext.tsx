@@ -2,9 +2,9 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { RhythmEngine } from '../engine/RhythmEngine';
 import { GraphEngine } from '../engine/GraphEngine';
 import { unlockAudio } from '../audio/unlockAudio';
-import { createDefaultSimOptions, SimOptions } from '../types/SimOptions';
-import { WaveBuffer, WaveBufferMap } from '../engine/WaveBuffer';
 import { leadVectors } from '../constants/leadVectors';
+import { WaveBuffer, WaveBufferMap } from '../engine/WaveBuffer';
+import { createDefaultSimOptions, SimOptions } from '../types/SimOptions';
 import { updateGraphEngineFromSim } from '../engine/GraphControl';
 import { decodeSimOptionsFromURL } from '../utils/simOptionsURL';
 import { useAlarmSound } from '../hooks/useAlarmSound';
@@ -41,9 +41,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const encoded = params.get("sim");
     const restored = encoded ? decodeSimOptionsFromURL(encoded) : null;
     return restored ?? new SimOptions(createDefaultSimOptions());
+
   });
   const simOptionsRef = useRef(simOptions);
-  useEffect(() => { simOptionsRef.current = simOptions; }, [simOptions]);
+  useEffect(() => { simOptionsRef.current = simOptions;}, [simOptions]);
 
   const graphRef = useRef<GraphEngine | null>(null);
   const [hr, setHr] = useState(-1);
@@ -105,6 +106,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           spo2: Number(raw.spo2 ?? -1),
           nibp_sys: Number(raw.nibp_sys ?? 120),
           nibp_dia: Number(raw.nibp_dia ?? 70),
+          etco2: Number(raw.etco2 ?? 38),
+          pi: Number(raw.pi ?? 2), // パルス振幅（オプション）
         };
       },
       onHrUpdate: setHr,
@@ -176,10 +179,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { isSimRunningRef.current = isSimRunning; }, [isSimRunning]);
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { 
+      if (e.key === 'Escape') {
         console.log(bufferRef)
         console.log("[ESC] simulation suspended.")
-        setIsSimRunning(false); 
+        setIsSimRunning(false);
       }
     };
     window.addEventListener('keydown', handleKeydown);

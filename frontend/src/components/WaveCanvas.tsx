@@ -1,5 +1,3 @@
-// src/components/WaveCanvas.tsx
-
 import React, { useEffect, useRef, useState } from 'react';
 import { PX_SCALE } from '../constants/constants';
 import { waveMetaMap, WaveMeta } from '../constants/waveMetaMap';
@@ -11,9 +9,7 @@ interface WaveCanvasProps {
   label?: string;
 }
 
-// ECGリード用 1mVスケール表示
 function drawECGScale(ctx: CanvasRenderingContext2D, size: { width: number, height: number }, gain: number) {
-  // 1mVスケール
   const scaleX = 10;
   const scaleHeight = gain * 1;
   const scaleTop = size.height / 2 - scaleHeight / 2;
@@ -29,7 +25,6 @@ function drawECGScale(ctx: CanvasRenderingContext2D, size: { width: number, heig
   ctx.lineTo(scaleX + 10, scaleBottom);
   ctx.stroke();
 
-  // スケールラベル
   ctx.fillStyle = 'white';
   ctx.font = '12px Arial';
   ctx.fillText('1 mV', scaleX + 15, scaleTop + 5);
@@ -38,6 +33,7 @@ function drawECGScale(ctx: CanvasRenderingContext2D, size: { width: number, heig
 const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const meta: WaveMeta = waveMetaMap[signalKey];
@@ -70,21 +66,22 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
     if (!canvas || !ctx || size.width === 0 || size.height === 0) return;
 
     const draw = () => {
-      const buffer = bufferRef.current[signalKey]?.getArray?.() ?? [];
+      const buf = bufferRef.current[signalKey];
+      const full = buf?.getArray?.() ?? [];
+      const length = buf?.size?.() ?? 0;
       const visibleSec = size.width / PX_SCALE.pxPerSec;
       const visibleSamples = Math.floor(visibleSec * 1000 / 5); // STEP_MS = 5ms
-      const wave = buffer.slice(-visibleSamples);
+      const start = Math.max(0, length - visibleSamples);
+      const step = Math.max(1, Math.floor((length - start) / size.width));
 
       ctx.clearRect(0, 0, size.width, size.height);
 
-      // --- 背景: scaleLines(基準線)を描画 ---
       let useNormalizedY = typeof yMax === "number" && typeof yMin === "number";
       if (useNormalizedY && scaleLines.length > 0) {
         ctx.save();
         ctx.setLineDash([4, 4]);
         ctx.strokeStyle = '#888';
         ctx.lineWidth = 1;
-        // Y座標変換（正規化）
         const yBase = (v: number) =>
           size.height - ((v - yMin!) / (yMax! - yMin!)) * size.height;
         scaleLines.forEach(v => {
@@ -94,7 +91,6 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
           ctx.moveTo(0, y);
           ctx.lineTo(size.width, y);
           ctx.stroke();
-          // ラベル
           ctx.fillStyle = '#aaa';
           ctx.font = '11px Arial';
           ctx.fillText(`${v}`, 2, y - 2);
@@ -107,40 +103,35 @@ const WaveCanvas: React.FC<WaveCanvasProps> = ({ bufferRef, signalKey }) => {
       ctx.lineWidth = 2.0;
       ctx.beginPath();
 
-      // --- 波形本体 ---
-      if (useNormalizedY) {
-        // max/min両方定義あり: 正規化y座標
-        const yBase = (v: number) =>
-          size.height - ((v - yMin!) / (yMax! - yMin!)) * size.height;
+      const baseline = size.height * baselineRatio;
+      const yBaseNorm = (v: number) =>
+        size.height - ((v - yMin!) / (yMax! - yMin!)) * size.height;
 
-        for (let i = 0; i < wave.length; i++) {
-          const timeOffsetSec = (wave.length - i) * 5 / 1000;
-          const x1 = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
-          const y1 = yBase(wave[i]);
-          i === 0 ? ctx.moveTo(x1, y1) : ctx.lineTo(x1, y1);
-        }
-      } else {
-        // 従来通り: baselineRatio, gain
-        const baseline = size.height * baselineRatio;
-        for (let i = 0; i < wave.length; i++) {
-          const timeOffsetSec = (wave.length - i) * 5 / 1000;
-          const x1 = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
-          const y1 = baseline - wave[i] * gain;
-          i === 0 ? ctx.moveTo(x1, y1) : ctx.lineTo(x1, y1);
-        }
+      for (let i = start; i < length; i += step) {
+        const idx = i % full.length;
+        const val = full[idx];
+        const timeOffsetSec = (length - i) * 5 / 1000;
+        const x1 = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
+        const y1 = useNormalizedY ? yBaseNorm(val) : baseline - val * gain;
+        i === start ? ctx.moveTo(x1, y1) : ctx.lineTo(x1, y1);
       }
       ctx.stroke();
 
-      // ECGリードなら従来の1mVスケール
       const isECGLead = (signalKey: string): boolean => signalKey in leadVectors;
       if (isECGLead(signalKey)) {
         drawECGScale(ctx, size, gain);
       }
 
-      requestAnimationFrame(draw);
+      animationRef.current = requestAnimationFrame(draw);
     };
 
-    requestAnimationFrame(draw);
+    draw();
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [size, signalKey, gain, baselineRatio, strokeStyle, yMax, yMin, scaleLines]);
 
   return (

@@ -1,46 +1,53 @@
 // src/engine/RhythmEngine.ts
+
 import { GraphEngine } from './GraphEngine';
-import { playBeep } from '../audio/playBeep';
-import { ECG_CONFIG, MAX_DELAY, STEP_MS } from '../constants/constants';
+import { ECG_CONFIG, MAX_DELAY, BASE_SYSTOLIC_MS } from '../constants/constants';
 import { Path } from './graphs/Path';
 import type { WaveBufferMap } from './WaveBuffer';
-import type { LeadName } from '../constants/leadVectors';
 import { PulseWaveFn } from './generators/generatePulseWave';
 import { BreathEngine } from './BreathEngine';
-
 import { VENTRICULAR_NODES } from '../constants/constants';
 
+import { AudioController } from '../lib/AudioController';
+import { WaveformController } from './generators/WaveformController';
+import { ContractionDetector } from './ContractionDetector';
+
 const DEFAULT_RR = 750;
-const MS_PER_MINUTE = 60000;
-const BASE_SYSTOLIC_MS = 300; // 生理値基準
 
 export class RhythmEngine {
   private graph: GraphEngine;
-  private audioCtx?: AudioContext | null;
-  private isBeepOn?: () => boolean;
-  private _getVitals?: () => {
-    spo2: number;
-    nibp_sys: number;
-    nibp_dia: number;
-    etco2?: number; // オプションでETCO2値も取得
-  };
   private bufferRef: React.MutableRefObject<WaveBufferMap>;
   private lastStepTime = 0;
   private paths: Path[];
-  private vFireTimes: number[] = [];
   private onHrUpdate?: (hr: number) => void;
-  private lastContractionTime: number;
-  private ventricularFiringSet: Set<string> = new Set();
-  private isContracting: boolean = false;
-  private rr: number = DEFAULT_RR;
 
-  // Windkesselモデル用パラメータ（SimOptions/UI等と連動可能）
+  // PI管理
+  private currentPI: number = 1.0;
+  private pendingPI: number = 1.0;
+
+  // Windkesselモデル用パラメータ
   private r: number = 0.06;
   private c: number = 1.2;
   private sv: number = 70;
   private pulseWaveFn: (t: number) => number = () => 0;
   private breathEngine: BreathEngine;
-  
+
+  // Controller
+  private audioController: AudioController;
+  private waveformController: WaveformController;
+  private contractionDetector: ContractionDetector;
+
+  // RR/HR状態
+  private rr: number = DEFAULT_RR;
+
+  private _getVitals?: () => {
+    spo2: number;
+    nibp_sys: number;
+    nibp_dia: number;
+    etco2?: number;
+    pi?: number;
+  };
+
   constructor({
     graph,
     bufferRef,
@@ -59,35 +66,50 @@ export class RhythmEngine {
       spo2: number;
       nibp_sys: number;
       nibp_dia: number;
-      etco2?: number; // オプションでETCO2値も取得
+      etco2?: number;
+      pi?: number;
     };
     rr?: number;
     onHrUpdate?: (hr: number) => void;
     breathEngine: BreathEngine;
   }) {
     this.graph = graph;
-    this.audioCtx = audioCtx ?? null;
-    this.isBeepOn = isBeepOn;
-    this._getVitals = getVitals;
-    this.rr = rr ?? DEFAULT_RR;
     this.bufferRef = bufferRef;
+    this.rr = rr ?? DEFAULT_RR;
     this.paths = graph.getPaths();
     this.onHrUpdate = onHrUpdate;
-    this.lastContractionTime = -3_000;
     this.breathEngine = breathEngine;
 
-    // 初期pulseWaveFn（sdはrr依存で都度計算するのでここは適当でOK）
-    this.updatePulseWaveFn();
+    this.currentPI = 1.0;
+    this.pendingPI = 1.0;
+    this.updatePulseWaveFn(this.currentPI);
+
+    this.audioController = new AudioController({
+      audioCtx: audioCtx ?? null,
+      isBeepOn,
+    });
+    this.waveformController = new WaveformController({
+      bufferRef: this.bufferRef,
+      breathEngine: this.breathEngine,
+    });
+    this.contractionDetector = new ContractionDetector(VENTRICULAR_NODES);
+
+    this._getVitals = getVitals;
   }
 
-  /** rrから生理学的収縮期長sdを計算（Path補正式と完全一致） */
+  /** 外部からPI（脈波振幅）を設定（即時反映されず、次周期で反映） */
+  public setPendingPI(pi: number) {
+    this.pendingPI = pi;
+  }
+
+  /** rrから収縮期長sdを計算（Path補正式と一致） */
   private calcSd(rr: number): number {
     const rrFactor = Math.max(0.5, Math.min(1.5, Math.sqrt(rr / 1000)));
     return BASE_SYSTOLIC_MS * rrFactor;
   }
 
-  /** Windkessel厳密モデルでpulseWaveFnを再生成（毎拍呼ぶ） */
-  public updatePulseWaveFn() {
+  /** PulseWaveFn再生成。PIは周期ごとにcurrentPIで決定 */
+  public updatePulseWaveFn(pi: number) {
     const sd = this.calcSd(this.rr);
     this.pulseWaveFn = PulseWaveFn({
       rr: this.rr,
@@ -95,66 +117,26 @@ export class RhythmEngine {
       c: this.c,
       sv: this.sv,
       sd: sd,
+      pi: pi,
       dt: 1,
     });
   }
 
-  private checkContractionByNodeFiring(firedNow: string[]): boolean {
-    for (const nodeId of firedNow) {
-      if (VENTRICULAR_NODES.has(nodeId)) {
-        this.ventricularFiringSet.add(nodeId);
-      }
-    }
-    if (this.ventricularFiringSet.size >= VENTRICULAR_NODES.size) {
-      this.ventricularFiringSet.clear();
-      this.isContracting = true;
-      return true;
-    }
-    return false;
-  }
-
-  public isInContraction(): boolean {
-    return this.isContracting;
-  }
-
+  /** 波形バッファの更新（WaveformController経由） */
   public updateBuffer(nowMs: number) {
-    const voltages: Record<LeadName, number> = {} as Record<LeadName, number>;
-    const rr = this.rr ?? DEFAULT_RR;
-
-    // 1. 各Pathから理論値合成
-    for (const path of this.paths) {
-      const baseWave = path.getBaseWave(nowMs, rr);
-      for (const lead in path.dotFactors) {
-        const dotFactor = path.dotFactors[lead as LeadName];
-        voltages[lead as LeadName] = (voltages[lead as LeadName] || 0) + baseWave * dotFactor;
-      }
-    }
-
-    for (const lead in voltages) {
-      const v = voltages[lead as LeadName];
-      this.pushBuffer(lead as LeadName, v);
-    }
+    const pulseElapsed = nowMs - this.contractionDetector.getLastContractionTime();
+    this.waveformController.updateBuffer(
+      nowMs,
+      this.paths,
+      this.rr,
+      this.pulseWaveFn,
+      pulseElapsed
+    );
   }
 
   public setGraph(graph: GraphEngine) {
     this.graph = graph;
     this.paths = graph.getPaths();
-  }
-
-  private calculateLastRR(): number {
-    if (this.vFireTimes.length < 2) return DEFAULT_RR;
-    const [prev, last] = this.vFireTimes.slice(-2);
-    const rr = last - prev;
-    return rr > 0 ? rr : DEFAULT_RR;
-  }
-
-  private calculateHrFromMedian(): number {
-    if (this.vFireTimes.length < 2) return -1;
-    const intervals = this.vFireTimes.slice(-6).map((t, i, arr) => (i > 0 ? t - arr[i - 1] : 0)).filter(v => v > 0);
-    if (intervals.length === 0) return -1;
-    intervals.sort((a, b) => a - b);
-    const median = intervals[Math.floor(intervals.length / 2)];
-    return Math.round(MS_PER_MINUTE / median);
   }
 
   public step(currentTime: number, isRunning: boolean) {
@@ -168,34 +150,30 @@ export class RhythmEngine {
       this.updateBuffer(nowMs - MAX_DELAY);
       const vitals = this._getVitals?.();
 
-      const pulseElapsed = nowMs - this.lastContractionTime; // [ms]
-      const spo2 = this.pulseWaveFn(pulseElapsed >= 0 ? pulseElapsed : 0);
-      this.pushBuffer('spo2', spo2);
-
-      if (nowMs % (3 * STEP_MS) === 0) {
-        const etco2 = this.breathEngine.getEtco2(nowMs);
-        this.pushBuffer('etco2', etco2);
+      // 脈波振幅(PI)をUI/SimOptionsから反映（pendingPIにセットされていたら、次周期で切り替え）
+      if (vitals?.pi !== undefined && this.pendingPI !== vitals.pi) {
+        this.setPendingPI(vitals.pi);
       }
 
       const firing = this.graph.tick(t * 1000);
-      if (this.checkContractionByNodeFiring(firing)) {
-        const now = t * 1000;
-        this.lastContractionTime = now;
-        this.vFireTimes.push(now);
-        this.vFireTimes = this.vFireTimes.filter(ts => ts >= now - 5000);
 
-        const hr = this.calculateHrFromMedian();
+      // 拍動検知（周期開始）：ContractionDetector経由
+      const contractionDetected = this.contractionDetector.update(firing, t * 1000);
+      if (contractionDetected) {
+        // HR, RR更新
+        const hr = this.contractionDetector.getHR();
         this.onHrUpdate?.(hr);
-        this.rr = this.calculateLastRR();
+        this.rr = this.contractionDetector.getRR();
 
-        // 毎拍でPulseWaveFn再生成（rrやパラメータ変化対応・sdをrrから再計算）
-        this.updatePulseWaveFn();
+        // ここでpendingPI→currentPIへ切り替え（周期反映の本体）
+        if (this.pendingPI !== this.currentPI) {
+          this.currentPI = this.pendingPI;
+        }
+        // 毎拍でPulseWaveFn再生成（PIやrrや他パラが反映される）
+        this.updatePulseWaveFn(this.currentPI);
 
         const spo2ForBeep = vitals?.spo2 ?? -1;
-
-        if (this.audioCtx && this.isBeepOn?.()) {
-          playBeep(this.audioCtx, spo2ForBeep);
-        }
+        this.audioController.playBeep(spo2ForBeep);
       }
     }
   }
@@ -204,11 +182,11 @@ export class RhythmEngine {
     this.onHrUpdate = callback;
   }
 
-  private pushBuffer(key: string, val: number) {
-    this.bufferRef.current[key]?.push(val);
+  public setAudioContext(ctx: AudioContext) {
+    this.audioController.setAudioContext(ctx);
   }
 
-  public setAudioContext(ctx: AudioContext) {
-    this.audioCtx = ctx;
+  public isInContraction(): boolean {
+    return this.contractionDetector.isInContraction();
   }
 }

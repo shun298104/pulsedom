@@ -81,19 +81,33 @@ Path単位での伝導判定、発火・ブロック・伝導イベントを記�
 STATEはGE進行中のみ更新、CONFIGへの干渉は不可
 
 ## 2.2 ◾️ RhythmEngine (RE)　// src/engine/RhythmEngine.ts
-GEのtick()を駆動する
-getVoltageAt(t)で全アクティブwaveformを合成しjitter処理を加えてBufferに格納
-checkContractionByNodeFiring()で収縮期を判定し、心拍数を計算・UIへコールバック
-calculateLastRR()で直近RR間隔を計算しthis.rrへ保存
-収縮期判定時に心同期音再生(playBeep)
-SPO2/ART波形の生成・Buffer格納
-REが直接グラフを書き換えることはない
-GEで困難な現象（VF等）を補助する可能性あり
+PULSEDOMシミュレーションのコア制御エンジン。
+GraphEngine, WaveformController, ContractionDetector, AudioControllerを協調させ、tick進行・状態管理・波形合成など全体のフロー制御のみを担当。
+各種Controller/Detectorへ責務委譲し、RE本体は「コア進行管理」のみ
+PI（脈波振幅）管理、周期ごとのPI切り替え、pulseWave関数の再生成はREで実施
+
 ### 2.2.1 generatePulseWave  // src/engine/generators/generatePulseWave.ts
 脈波を生成するモジュール、REから呼ばれる。
 ### 2.2.2 generateEtco2Wave　// src/engine/generators/generateEtco2Wave.ts
 カプノグラムを生成するモジュール、REから呼ばれる。
 呼吸パターンはBEの責務。
+### 2.2.3 ContractionDetector　// src/engine/ContractionDetector.ts
+心室収縮（脈拍）検知およびHR/RR（心拍数/間隔）計算専用クラス。
+発火ノードセット（firedNow）から心室収縮を判定
+vFireTimes[]による拍動時刻管理と過去データからのHR/RR計算
+isInContraction()で収縮中状態管理、getLastContractionTime(), getRR(), getHR()で周期・心拍数値を外部提供
+RhythmEngineから周期進行のトリガ・計測データ参照のみ
+# 2.2.4 WaveformController　// src/engine/generators/WaveformController.ts
+ECG, SpO2, ETCO2など各種バッファ波形の合成・格納専用クラス。
+updateBuffer()で全Path波形の合成・Buffer格納を担当
+pushBuffer()で個別Leadへの値push管理
+バッファ責務のみに特化（周期計算/PI切替/波形関数生成などのロジックはRhythmEngine側で管理）
+呼吸周期・ETCO2合成はBreathEngine連携
+# 2.2.5  AudioController　// src/lib/AudioController.ts
+Beep音制御およびAudioContext管理専用クラス。
+AudioContext, isBeepOn()コールバックの保持
+playBeep()で条件に応じた音声鳴動
+setAudioContext(), setIsBeepOn()で外部コントローラブルに設計
 
 ## 2.3 ◾️ GraphControl (GC) //src/engine/GraphControl.ts
 GraphControlRule[]に従った宣言的制御ロジックの中核

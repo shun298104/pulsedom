@@ -6,6 +6,7 @@ export type PulseWaveParams = {
   c: number;     // コンプライアンス [mL/mmHg]
   sv: number;    // 1回拍出量 [mL]
   sd: number;    // 収縮期長 [ms]
+  pi: number;  // 脈波振幅指標（PI）[0.0〜1.0]（省略時1.0）
   dt?: number;   // 刻み幅 [ms]（省略時1ms）
 };
 
@@ -43,13 +44,13 @@ export function PulseWaveFn(params: PulseWaveParams): (t: number) => number {
     const t = i * dt;
     const prevP = P[i - 1];
     const Qin = qin(t);
-    const dP = ((Qin - prevP / r) / c) * (dt / 1000);
+    const dP = ((Qin - prevP / r) / c) * (dt / 1000) ;
     P.push(prevP + dP);
   }
 
   return function (t: number): number {
     if (t < 0 || t >= rr) return 0;
     const idx = Math.floor(t / dt);
-    return P[idx] ?? 0;
+    return (P[idx] ?? 0) * (params.pi ?? 1.0);
   };
 }

@@ -94,7 +94,7 @@ export class Path {
       toNode.y - fromNode.y,
       toNode.z - fromNode.z
     );
-    this.dotFactors = calculateDotFactors(this, fromNode, toNode);
+    this.dotFactors = calculateDotFactors(fromNode, toNode);
 
     this.updateParams(
       this.CONFIG.delayMs,

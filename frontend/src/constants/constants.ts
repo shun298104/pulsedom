@@ -3,6 +3,9 @@
 // リアルタイム波形評価のステップ間隔（ms単位）
 export const STEP_MS = 5;
 
+ // 収縮期の基本時間（ms単位）
+export const BASE_SYSTOLIC_MS = 300;
+
 //　＝canvasで描画しない時間(ms)
 export const MAX_DELAY = 120;
 

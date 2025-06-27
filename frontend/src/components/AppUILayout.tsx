@@ -97,19 +97,19 @@ const AppUILayout: React.FC = () => {
               <div className=" text-sm text-left col-span-2 sm:order-5 sm:col-span-4 md:order-5 xl:col-span-6">
                 <WaveCanvas bufferRef={bufferRef} signalKey="spo2" label="spo2" />
               </div>
-              <div className="h-full col-span-1 sm:order-6 md:order-6">
+              <div className="h-full col-span-1 sm:order-9 md:order-9">
                 <VitalDisplay param={ETCO2_PARAM} value={simOptions.etco2} />
               </div>
-              <div className="h-full col-span-1 sm:order-7 md:order-7">
+              <div className="h-full col-span-1 sm:order-10 md:order-10">
                 <VitalDisplay param={RESP_PARAM} value={simOptions.respRate} />
               </div>
-              <div className=" text-sm text-left col-span-2 sm:order-8 sm:col-span-4 md:order-8 xl:col-span-6">
+              <div className=" text-sm text-left col-span-2 sm:order-11 sm:col-span-4 md:order-11 xl:col-span-6">
                 <WaveCanvas bufferRef={bufferRef} signalKey="etco2" label="EtCO₂" />
               </div>
             </div>
           )}
 
-          {/* 12誘導モード */}
+          {/* 12  */}
           {is12LeadMode && (
             <>
               <div className="grid grid-cols-4 gap-2 mb-4">

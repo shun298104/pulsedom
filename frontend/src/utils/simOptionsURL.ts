@@ -21,7 +21,9 @@ export function decodeSimOptionsFromURL(encoded: string): SimOptions | null {
   try {
     const json = atob(decodeURIComponent(encoded));
     const raw = JSON.parse(json);
-    return new SimOptions(raw);
+    const sim = new SimOptions(raw);
+    if (raw.status) sim['status'] = raw.status;
+    return sim;
   } catch (e) {
     console.error("decodeSimOptionsFromURL failed", e);
     return null;
