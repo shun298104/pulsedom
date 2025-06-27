@@ -1,10 +1,13 @@
+// src/engine/ContractionDetector.ts
+
+import {DEFAULT_RR} from '../constants/constants';
+
 export class ContractionDetector {
   private vFireTimes: number[] = [];
   private ventricularFiringSet: Set<string> = new Set();
   private lastContractionTime: number = -3_000;
   private isContracting: boolean = false;
   private static MS_PER_MINUTE = 60000;
-  private static DEFAULT_RR = 750;
   private ventricularNodes: Set<string>;
 
   constructor(ventricularNodes: Set<string>) {
@@ -38,10 +41,10 @@ export class ContractionDetector {
   }
 
   getRR(): number {
-    if (this.vFireTimes.length < 2) return ContractionDetector.DEFAULT_RR;
+    if (this.vFireTimes.length < 2) return DEFAULT_RR;
     const [prev, last] = this.vFireTimes.slice(-2);
     const rr = last - prev;
-    return rr > 0 ? rr : ContractionDetector.DEFAULT_RR;
+    return rr > 0 ? rr : DEFAULT_RR;
   }
 
   getHR(): number {

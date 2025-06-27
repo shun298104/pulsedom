@@ -1,7 +1,7 @@
 // src/engine/RhythmEngine.ts
 
 import { GraphEngine } from './GraphEngine';
-import { ECG_CONFIG, MAX_DELAY, BASE_SYSTOLIC_MS } from '../constants/constants';
+import { ECG_CONFIG, MAX_DELAY, BASE_SYSTOLIC_MS, DEFAULT_RR } from '../constants/constants';
 import { Path } from './graphs/Path';
 import type { WaveBufferMap } from './WaveBuffer';
 import { PulseWaveFn } from './generators/generatePulseWave';
@@ -11,8 +11,6 @@ import { VENTRICULAR_NODES } from '../constants/constants';
 import { AudioController } from '../lib/AudioController';
 import { WaveformController } from './generators/WaveformController';
 import { ContractionDetector } from './ContractionDetector';
-
-const DEFAULT_RR = 750;
 
 export class RhythmEngine {
   private graph: GraphEngine;
