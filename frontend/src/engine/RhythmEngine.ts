@@ -3,11 +3,10 @@
 import { GraphEngine } from './GraphEngine';
 import { ECG_CONFIG, MAX_DELAY, BASE_SYSTOLIC_MS, DEFAULT_RR } from '../constants/constants';
 import { Path } from './graphs/Path';
-import type { WaveBufferMap } from './WaveBuffer';
 import { PulseWaveFn } from './generators/generatePulseWave';
 import { BreathEngine } from './BreathEngine';
 import { VENTRICULAR_NODES } from '../constants/constants';
-
+import type { WaveBufferMap } from './WaveBuffer';
 import { AudioController } from '../lib/AudioController';
 import { WaveformController } from './generators/WaveformController';
 import { ContractionDetector } from './ContractionDetector';
@@ -20,8 +19,8 @@ export class RhythmEngine {
   private onHrUpdate?: (hr: number) => void;
 
   // PI管理
-  private currentPI: number = 1.0;
-  private pendingPI: number = 1.0;
+  private currentPI: number = 2.0;
+  private pendingPI: number = 2.0;
 
   // Windkesselモデル用パラメータ
   private r: number = 0.06;

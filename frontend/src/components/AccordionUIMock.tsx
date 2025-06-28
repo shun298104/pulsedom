@@ -2,7 +2,6 @@ import { SimOptions } from "../types/SimOptions";
 import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
 import { useAppState } from '../hooks/AppStateContext';
 import { Share2 } from "lucide-react";
-
 import WaveformSlider from "./ui/WaveformSlider";
 import StatusButtons from "./ui/StatusButtons";
 import {
@@ -21,6 +20,7 @@ const AccordionUIMock: React.FC = () => {
     isAlarmOn,
     toggleBeep,
     toggleAlarm,
+    resetSimOptions,
   } = useAppState();
 
   // ------- 状態更新関数（SimOptions クラス対応） --------
@@ -265,7 +265,21 @@ const AccordionUIMock: React.FC = () => {
         <Share2 className="w-6 h-6" />
 
       </button>
-
+      <button
+        className="absolute bottom-2 right-20 text-xs font-medium tracking-wide px-3 py-1 rounded border border-zinc-400 transition hover:bg-red-200"
+        onClick={() => {
+          if (window.confirm("本当に全員の設定をリセットしますか？")) {
+            resetSimOptions();
+            alert("✅ シミュレータをリセットしました！");
+          }
+        }}
+      >
+        <span className="inline-block align-middle mr-2">
+          {/* Refreshアイコン */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 12A9 9 0 1 1 3 12h3m0 0V9m0 3h3" /></svg>
+        </span>
+        Reset
+      </button>
     </div >
   );
 }

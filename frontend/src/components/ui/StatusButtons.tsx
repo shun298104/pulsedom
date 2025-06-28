@@ -74,7 +74,6 @@ const StatusButtons: React.FC<StatusButtonsProps> = ({
           values={simOptions.getOptionsForStatus(extendedKey)}
           onChange={(key, value) => {
             const next = simOptions.clone();
-            console.log("[uicontrol]", next, extendedKey, key, value)
             next.setExtendedOption(extendedKey, key, value);
             updateSimOptions(next);
           }}

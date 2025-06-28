@@ -26,22 +26,33 @@ export type RawSimOptions = {
     avDelay: number;
   };
   conductionRate?: string;
-  status?: Record<string, string>; 
+  status?: Record<string, string>;
 };
 
 export class SimOptions {
 
   constructor(raw: RawSimOptions | SimOptions) {
+    let status =
+      "getRaw" in raw
+        ? (raw as SimOptions).status
+        : (raw as RawSimOptions).status;
+
+    if (!status) {
+      status = {
+        sinus_status: 'NSR',
+        junction_status: 'Normal',
+        conduction_status: 'Normal',
+        ventricle_status: 'Normal',
+      };
+    }
+
     if ("getRaw" in raw) {
       this.rawData = raw.getRaw();
-      this.status = { ...raw.status };
     } else {
       this.rawData = raw;
-      this.status = {};
     }
+    this.status = { ...status };
   }
-
-
   private rawData: RawSimOptions;
   private status: Record<string, string> = {};
 
@@ -51,6 +62,12 @@ export class SimOptions {
       ...this.rawData,
       status: { ...this.status },
     };
+  }
+
+  clone(): SimOptions {
+    const cloned = new SimOptions(this.getRaw());
+    cloned.status = { ...this.status };
+    return cloned;
   }
 
   getOption(key: string): string | number | undefined {
@@ -63,7 +80,7 @@ export class SimOptions {
   }
 
   setExtendedOption(status: string, key: string, value: string | number) {
-    const fullKey = `${status.toLowerCase()}.${key}`; 
+    const fullKey = `${status.toLowerCase()}.${key}`;
     this.setOption(fullKey, value);
   }
 
@@ -80,12 +97,6 @@ export class SimOptions {
     return result;
   }
 
-  clone(): SimOptions {
-    const cloned = new SimOptions(this.getRaw());
-    cloned.status = { ...this.status };  // ← これが必要！
-    return cloned;
-  }
-
   public setStatus(group: string, id: string): void {
     this.status[group] = id;
   }
@@ -94,6 +105,7 @@ export class SimOptions {
   public getStatus(group: string): string | undefined {
     return this.status[group];
   }
+  /** statusesを取得（GC用） */
   get statuses(): string[] {
     return Object.values(this.status).filter((s): s is string => !!s);
   }

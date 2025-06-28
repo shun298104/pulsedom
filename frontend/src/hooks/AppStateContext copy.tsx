@@ -12,10 +12,10 @@ import { useAlarmSound } from '../hooks/useAlarmSound';
 import { stopAlarm as stopAlarmLib } from '../lib/AlarmAudioController';
 import { PULSEDOM_VERSION } from '../constants/version';
 import { BreathEngine } from '../engine/BreathEngine';
-import { useSimOptionsSync } from '../hooks/useSimOptionsSync';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface AppStateContextProps {
-  isSimOptionsReady: boolean;
   bufferRef: React.RefObject<WaveBufferMap>;
   alarmAudioRef: React.RefObject<HTMLAudioElement | null>;
   hr: number;
@@ -51,13 +51,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const graphRef = useRef<GraphEngine | null>(null);
   const [hr, setHr] = useState(-1);
-  const [isEditorVisible, setEditorVisible] = useState(true);
 
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
   const isBeepOnRef = useRef(false);
   const [isAlarmOn, setIsAlarmOn] = useState(false);
   const isAlarmOnRef = useRef(false);
+  const [isEditorVisible, setEditorVisible] = useState(true);
+
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
   const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef, isAlarmOn);
   const stopAlarm = () => stopAlarmLib(alarmAudioRef.current, alarmLevel);
@@ -77,26 +78,13 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })
   );
 
-  const [isSimOptionsReady, setSimOptionsReady] = useState(false);
-  const { updateRemoteSimOptions } = useSimOptionsSync(
-    roomId,
-    (options) => {
-      setSimOptions(options);
-      setSimOptionsReady(true);
-    },
-    graphRef,
-    breathEngineRef
-  );
-
   const [engine, setEngine] = useState<RhythmEngine | null>(null);
   useEffect(() => {
     const graph = graphRef.current ?? (graphRef.current = GraphEngine.createDefaultEngine());
     updateGraphEngineFromSim(simOptions, graph);
-  }, [isSimOptionsReady]);
+  }, []);
 
   useEffect(() => {
-    if (!isSimOptionsReady) return;
-
     breathEngineRef.current.update({
       respRate: simOptions.respRate,
       etco2: simOptions.etco2,
@@ -133,11 +121,32 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       animationId = requestAnimationFrame(loop);
     };
-    console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION} (RE initialized after simOptionsReady)`);
+    console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION}`);
     animationId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(animationId);
-  }, [isSimOptionsReady]);
+  }, []);
+
+  useEffect(() => {
+    const ref = doc(db, "simoptions", roomId);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const next = new SimOptions({
+        ...createDefaultSimOptions().getRaw(),
+        ...data,
+        status: { ...createDefaultSimOptions().getRaw().status, ...(data.status ?? {}) },
+      });
+      setSimOptions(next);
+      simOptionsRef.current = next;
+      if (graphRef.current) updateGraphEngineFromSim(next, graphRef.current);
+      breathEngineRef.current.update({
+        respRate: next.respRate,
+        etco2: next.etco2,
+      });
+    });
+    return () => unsub();
+  }, [roomId]);
 
   const resetSimOptions = () => {
     const resetOptions = new SimOptions(createDefaultSimOptions());
@@ -146,8 +155,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateSimOptions = (next: SimOptions) => {
     const bp_diff = next.sysBp - simOptionsRef.current.sysBp;
-    if (bp_diff !== 0) next.diaBp = simOptionsRef.current.diaBp + (bp_diff / 3 * 2);
-
+    if (bp_diff !== 0) {
+      next.diaBp = simOptionsRef.current.diaBp + (bp_diff / 3 * 2)
+    }
     if (next.diaBp < 0) next.diaBp = 0;
     if (next.diaBp > next.sysBp) next.diaBp = next.sysBp;
 
@@ -157,7 +167,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const graph = graphRef.current;
     if (graph) { updateGraphEngineFromSim(next, graph); }
 
-    updateRemoteSimOptions(next);
+    const ref = doc(db, "simoptions", roomId);
+    setDoc(ref, next.getRaw(), { merge: true });
 
     breathEngineRef.current.update({
       respRate: next.respRate,
@@ -199,7 +210,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const value: AppStateContextProps = {
-    isSimOptionsReady,
     bufferRef,
     alarmAudioRef,
     hr,

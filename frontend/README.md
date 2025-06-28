@@ -10,7 +10,9 @@ sinus_status, junction_status, ventricle_status, conduction_status: GraphControl
 sinus_rate, junction_rate, ventricle_rate, hr, spo2, nibp_sys, nibp_dia, etcos, respRateなどVS基本データを管理
 rawData.options: GraphControlRuleで定義された拡張オプション（Record<string, number>）を動的格納
 ### 1.1.2 主なメソッド
-getOption(key: string), setOption(key: string, value: string | number), getStatus(group: string), clone(), getRaw(), setExtendedOption(status: string, key: string, value: string | number), getOptionsForStatus(status: string)
+#### getRaw() SimOptionsインスタンスが内部で持つrawDataやstatusなど全情報を「プレーンな**JSONオブジェクト**」に変換して返す
+#### clone() SimOptionsインスタンスを「完全に複製した新しいSimOptions**インスタンス**」として返す
+getOption(key: string), setOption(key: string, value: string | number), getStatus(group: string), setExtendedOption(status: string, key: string, value: string | number), getOptionsForStatus(status: string)
 getStatuses(): UI用, statuses(): GCに渡す
 
 ## 1.2 ◾️ VitalParameter // src/models/VitalParameter.ts
@@ -129,7 +131,12 @@ ETCO₂波形の周期再生を担う補助エンジン
 
 # 3. UI構成
 PULSEDOMのUIは「全グローバル状態をContextで一元管理し、propsバケツリレーを廃止する」方針で実装されています。
-主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得・操作できます。
+主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得操作できます。
+## 3.0 ◾️ AppStateProvider / AppStateContext　// src/hooks/AppStateContext.tsx
+アプリ全体のグローバル状態（SimOptions・バイタル値・モード・UI状態など）を一元管理するContext層。
+- <AppStateProvider>〜</AppStateProvider>でラップされた配下すべてのコンポーネントからuseAppStateで状態取得・dispatchが可能
+- これによりpropsバケツリレーを排除し、全UI・ロジックからグローバルなデータアクセスが実現できる
+- 今後Firestoreなど外部連携による“丸ごと同期”実装もこの層で吸収・管理する設計
 ## 3.1 App（App.tsx + AppUILayout.tsx）// src/App.tsx  src/components/AppUILayout.tsx
 グローバル状態（SimOptions、アラームOn/Off、Beep On/Off、バッファ等）は AppStateContext で一元管理
 すべての下層UIは Context から値やハンドラを直接取得し、propsで渡す必要がない
