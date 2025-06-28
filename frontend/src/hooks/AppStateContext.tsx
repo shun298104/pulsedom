@@ -144,6 +144,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateSimOptions(resetOptions);
   };
 
+  /* UPDATE SIMULATION OPTIONS */
   const updateSimOptions = (next: SimOptions) => {
     const bp_diff = next.sysBp - simOptionsRef.current.sysBp;
     if (bp_diff !== 0) next.diaBp = simOptionsRef.current.diaBp + (bp_diff / 3 * 2);
