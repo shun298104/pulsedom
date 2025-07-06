@@ -47,9 +47,12 @@ export function useCasesSync(
     console.log("[updateRemoteCases] Firestore write", options.getRaw());
     if (!caseId) return;
     const ref = doc(db, "cases", caseId);
-    await updateDoc(ref, {
-      simOptions: options.getRaw(),
-    });
+    try {
+      await updateDoc(ref, { simOptions: options.getRaw() });
+      console.log("[updateRemoteCases] Firestore write success");
+    } catch (e) {
+      console.log("[updateRemoteCases] Firestore write error", e);
+    }
   };
 
   // サーバ時のみbufferをFirestoreにpush

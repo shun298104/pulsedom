@@ -139,9 +139,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     let animationId: number;
     const loop = (now: number) => {
-      if (isSimRunningRef.current) {
-        rhythmEngine.step(now / 1000, isSimRunningRef.current);
-      }
+      if (isSimRunningRef.current) { rhythmEngine.step(now / 1000); }
       animationId = requestAnimationFrame(loop);
     };
     console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION}`);
@@ -155,7 +153,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     caseId,
     (options: SimOptions) => {
       // SimOptions受信時のロギングと差分判定
-       console.log("[onSnapshot] Firestore simOptions received", options.getRaw(), "at", Date.now());
+      console.log("[onSnapshot] Firestore simOptions received", options.getRaw(), "at", Date.now());
       if (isEqual(options.getRaw(), simOptionsRef.current.getRaw())) {
         console.log("[onSnapshot] skip setSimOptions (no diff)");
         return;
@@ -171,8 +169,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   );
 
-
   const pushBufferToFirestore = async () => {
+    if (!isSimRunningRef.current) { return; }
     if (!caseId || !bufferRef.current) return;
     const ref = doc(db, "cases", caseId);
     const bufferObj: any = {};
@@ -188,21 +186,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (isDemo) return; // demo時はFirestoreにpushしない
     if (mode !== "server") return;
     const interval = setInterval(() => {
-      pushBufferToFirestore();
+//      pushBufferToFirestore();
     }, 1000);
     return () => clearInterval(interval);
   }, [mode, caseId, isDemo]);
-
-  // サーバのみbufferをFirestoreにpush
-  useEffect(() => {
-    if (isDemo) return; // demo時はFirestoreにpushしない
-    if (mode !== "server") return;
-    if (!bufferRef.current) return;
-    const interval = setInterval(() => {
-      pushBufferToFirestore?.();
-    }, 100);
-    return () => clearInterval(interval);
-  }, [mode, pushBufferToFirestore, isDemo]);
 
   const resetSimOptions = () => {
     const resetOptions = new SimOptions(createDefaultSimOptions());

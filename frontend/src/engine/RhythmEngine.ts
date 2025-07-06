@@ -136,8 +136,7 @@ export class RhythmEngine {
     this.paths = graph.getPaths();
   }
 
-  public step(currentTime: number, isRunning: boolean) {
-    if (!isRunning) return [];
+  public step(currentTime: number) {
 
     while (currentTime - this.lastStepTime >= ECG_CONFIG.stepMs / 1000) {
       this.lastStepTime += ECG_CONFIG.stepMs / 1000;

@@ -123,6 +123,7 @@ const AccordionUIMock: React.FC = () => {
         unit="%"
         onChange={(v: number) => {
           const next = new SimOptions(simOptions);
+          console.log("[UI] SpO₂ changed", v, next.getRaw(), "at", Date.now());
           next.spo2 = v;
           updateSimOptions(next);
         }}
