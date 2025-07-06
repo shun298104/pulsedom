@@ -1,7 +1,8 @@
 import { SimOptions } from "../types/SimOptions";
 import { encodeSimOptionsToURL } from '../utils/simOptionsURL';
 import { useAppState } from '../hooks/AppStateContext';
-import { Share2 } from "lucide-react";
+import { Share2, MonitorPlay, VolumeX, Volume2, Bell, BellOff, LogIn } from "lucide-react";
+
 import WaveformSlider from "./ui/WaveformSlider";
 import StatusButtons from "./ui/StatusButtons";
 import {
@@ -23,7 +24,8 @@ const AccordionUIMock: React.FC = () => {
     resetSimOptions,
   } = useAppState();
 
-  // ------- 状態更新関数（SimOptions クラス対応） --------
+  const { shareCase } = useAppState();
+
   const updateRate = (
     node: "sinus" | "junction" | "ventricle" | "respiration" | "etco2" | "pi",
     value: number
@@ -55,25 +57,59 @@ const AccordionUIMock: React.FC = () => {
   return (
 
     <div className="space-y-1">
-      <div className="flex justify-between items-center gap-1 px-1">
+
+      <div className="flex w-full items-stretch gap-1">
+        {/* 左：音・アラーム（60%） */}
+        <div className="flex flex-col gap-1 w-[60%]">
+          <button
+            className="h-6 w-full flex items-center gap-1 border border-gray-300 bg-white rounded px-2 text-xs text-gray-800"
+            onClick={toggleBeep}
+            type="button"
+          >
+            {isBeepOn
+              ? <Volume2 className="w-3 h-3 text-green-600" />
+              : <VolumeX className="w-3 h-3 text-gray-500" />}
+            SYNC BEEP {isBeepOn ? "ON" : "OFF"}
+          </button>
+          <button
+            className="h-6 w-full flex items-center gap-1 border border-gray-300 bg-white rounded px-2 text-xs text-gray-800"
+            onClick={toggleAlarm}
+            type="button"
+          >
+            {isAlarmOn
+              ? <Bell className="w-3 h-3 text-yellow-600" />
+              : <BellOff className="w-3 h-3 text-yellow-500" />}
+            ALARM {isAlarmOn ? "ON" : "OFF"}
+          </button>
+        </div>
+        {/* PC・大画面（md以上）：STARTボタン */}
         <button
-          className={`text-xs font-medium tracking-wide px-1 py-1 rounded border border-zinc-400 transition ${isBeepOn
-            ? "bg-zinc-300 text-green-700"
-            : "hover:bg-zinc-200"
-            }`}
-          onClick={toggleBeep}
+          className="hidden md:flex relative w-[40%] h-13 items-center justify-center border border-gray-300 bg-white rounded text-gray-800 px-2 text-xs overflow-hidden"
+          onClick={shareCase}
+          type="button"
         >
-          {isBeepOn ? "	🔊 SYNC BEEP ON " : "🔇 SYNC BEEP OFF "}
+          <MonitorPlay
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 text-blue-400 opacity-10 pointer-events-none"
+            aria-hidden="true"
+          />
+          <span className="relative z-10 text-gray-800 text-xs text-center leading-tight pointer-events-none select-none">
+            START SHARED SESSION
+          </span>
         </button>
-        {/* アラームON/OFFボタン */}
+
+        {/* スマホ（md未満）：JOINボタン */}
         <button
-          className={`text-xs font-medium tracking-wide px-1 py-1 rounded border border-zinc-400 transition ${isAlarmOn
-            ? "bg-zinc-300 text-green-700"
-            : "hover:bg-zinc-200"
-            }`}
-          onClick={toggleAlarm}
+          className="flex md:hidden relative w-[40%] h-13 items-center justify-center border border-gray-300 bg-white rounded text-gray-800 px-2 text-xs overflow-hidden"
+          onClick={shareCase}
+          type="button"
         >
-          {isAlarmOn ? "🔔 ALARM ON " : "🔕 ALARM OFF"}
+          <LogIn
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 text-green-400 opacity-10 pointer-events-none"
+            aria-hidden="true"
+          />
+          <span className="relative z-10 text-gray-800 text-xs text-center leading-tight pointer-events-none select-none">
+            JOIN SHARED SESSION
+          </span>
         </button>
       </div>
 

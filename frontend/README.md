@@ -132,32 +132,60 @@ ETCO₂波形の周期再生を担う補助エンジン
 # 3. UI構成
 PULSEDOMのUIは「全グローバル状態をContextで一元管理し、propsバケツリレーを廃止する」方針で実装されています。
 主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得操作できます。
-## 3.0 ◾️ AppStateProvider / AppStateContext　// src/hooks/AppStateContext.tsx
-アプリ全体のグローバル状態（SimOptions・バイタル値・モード・UI状態など）を一元管理するContext層。
-- <AppStateProvider>〜</AppStateProvider>でラップされた配下すべてのコンポーネントからuseAppStateで状態取得・dispatchが可能
-- これによりpropsバケツリレーを排除し、全UI・ロジックからグローバルなデータアクセスが実現できる
-- 今後Firestoreなど外部連携による“丸ごと同期”実装もこの層で吸収・管理する設計
-## 3.1 App（App.tsx + AppUILayout.tsx）// src/App.tsx  src/components/AppUILayout.tsx
+## 3.1 AppStateContext // src/hooks/AppStateContext.tsx + src/hooks/useCasesSync.ts）
+PULSEDOM全体の「グローバル状態・シミュレーション状態・各種エンジン・UI制御フラグ」を一元管理するContext層。
+UI側は useAppState フックで直接全プロパティ/ハンドラにアクセスでき、props伝播は不要。
+
+**主な責務一覧:**
+- SimOptions（シミュ状態・各リズム/VS設定）の保持・更新
+- hr（心拍数）、アラームレベル/メッセージの管理
+- Beep音ON/OFF, Alarm音ON/OFF
+- 描画用バッファ（ECG/SpO2/ART/ETCO2波形全データ）管理
+- BreathEngine, RhythmEngineインスタンスの生成・保持
+- UI制御（isEditorVisible等の各種フラグ）
+- 状態操作ハンドラ（resetSimOptions, updateSimOptions, toggleBeep, toggleAlarm, stopAlarm, setHr, setEditorVisible等）
+- shareCase（Firestore caseId発行・共有）
+- Firestore同期の実装（caseId依存／useCasesSync hookで責務分離、詳細は下記）
+- 全ての下層UIコンポーネントはContextから状態・操作を直接取得・操作
+
+【副作用/イベント管理】  
+- useEffectでSimOptionsや各種状態の更新監視／エンジン・バッファ・UIとの同期
+- Firestore双方向同期時の状態遷移制御
+- **Firestore同期**
+  - caseIdが"demo"以外のとき、useCasesSync経由でFirestoreのcases/{caseId}ドキュメントとSimOptionsを双方向リアルタイム同期
+  - Firestore→onSnapshot監視で他ウィンドウ・端末とSimOptionsを即時同期
+  - SimOptions変更時はisEqualで差分判定し、内容が変化した場合のみFirestoreへ反映
+  - demoモードはFirestoreアクセスなし（ローカルのみ）
+  - Firestore同期処理はAppStateContext⇔useCasesSyncで明確に責務分離
+  ##### 【同期フロー】
+  1. caseId指定でロード時、FirestoreのSimOptionsを取得・反映
+  2. ローカルSimOptions変更時、Firestoreにも即反映
+  3. 他端末/ウィンドウでSimOptions変更→Firestore→onSnapshot→即ローカル反映
+  ##### 【制約】
+  - demoモードはFirestore連携なし
+  - Firestore障害・権限エラー時の処理は今後の設計課題
+  - GraphEngine等への責務移譲なし（同期責務はContextと同期hookに限定）
+## 3.2 App（App.tsx + AppUILayout.tsx）// src/App.tsx  src/components/AppUILayout.tsx
 グローバル状態（SimOptions、アラームOn/Off、Beep On/Off、バッファ等）は AppStateContext で一元管理
 すべての下層UIは Context から値やハンドラを直接取得し、propsで渡す必要がない
 GraphEngine/RhythmEngineの生成、updateGraphEngineFromSim()による初期化
 RhythmEngine.step() を requestAnimationFrame() で駆動
 アラーム制御（評価・鳴動・ミュート）もContext経由
 ESCキーで一時停止可能
-## 3.2 Accordion     // src/components/AccodionUIMock.tsx
+## 3.3 Accordion     // src/components/AccodionUIMock.tsx
 サイドパネルUI。全ての状態は Context から直接取得
 スライダーや状態ボタン、ルールUIなどを格納
 下層の WaveformSlider, StatusButtons もContext取得・更新
-## 3.3 StatusButtons // src/components/ui/StatusButtons.tsx
+## 3.4 StatusButtons // src/components/ui/StatusButtons.tsx
 GraphControlGroup単位のボタンUI
 SimOptionsや各種statusは Context から取得・即時反映
-## 3.4 RuleControlUI // src/components/ui/RuleControlUI.tsx
+## 3.5 RuleControlUI // src/components/ui/RuleControlUI.tsx
 rule.uiControls[]を自動でスライダー等に展開
 SimOptions更新も Context 取得
-## 3.5 WaveCanvas    // src/components/WaveCanvas.tsx
+## 3.6 WaveCanvas    // src/components/WaveCanvas.tsx
 バッファ（bufferRef）は Context で管理
 心電図やバイタル波形の描画canvas
-## 3.6 VitalDisplay  // src/components/VitalDisplay.tsx
+## 3.7 VitalDisplay  // src/components/VitalDisplay.tsx
 VS単位の表示・アラームUIコンポーネント
 値のフォーマット・色分け・異常判定をVitalParameterに基づいて表示
 アラーム上限・下限はモーダルから直接編集可能（即時反映）

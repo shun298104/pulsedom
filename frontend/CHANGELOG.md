@@ -1,4 +1,7 @@
 # Changelog
+## [v0.9.3] - 2025-06-28
+firestoreでの同期を実装、useCaseSyncを分離
+
 ## [v0.9.2] - 2025-06-27
 ETCO2やRRの変更ををBEでpendingするように設計
 simoptionsURLでstatusが復元されないバグを修正

@@ -4,7 +4,6 @@ import VitalDisplay from './ui/VitalDisplay';
 import AccordionUIMock from './AccordionUIMock';
 import { PanelRightOpen, PanelRightClose, BellOff } from 'lucide-react';
 import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM, ETCO2_PARAM, RESP_PARAM } from '../types/VitalParameter';
-// import { Graph3D } from './three/Graph3D';
 import { useAppState } from '../hooks/AppStateContext';
 import { PULSEDOM_VERSION } from '../constants/version';
 
@@ -21,9 +20,19 @@ const AppUILayout: React.FC = () => {
     alarmLevel,
     alarmMessages,
     alarmAudioRef,
+    mode,             // 追加
+    remoteBuffer,     // 追加
   } = useAppState();
 
   const [is12LeadMode, set12LeadMode] = useState(false);
+  const buffer =
+    mode === "edit" || mode === "view"
+      ? { current: (remoteBuffer ?? {}) as Record<string, { getArray: () => number[]; size: () => number }> }
+      : bufferRef;
+  console.log('mode:', mode);
+  console.log('remoteBuffer:', remoteBuffer);
+  console.log('bufferRef.current:', bufferRef.current);
+  console.log('buffer:', buffer);
 
   return (
     <div className="relative min-h-screen bg-gray-50">
@@ -92,10 +101,10 @@ const AppUILayout: React.FC = () => {
                 </div>
               </div>
               <div className=" text-sm text-left col-span-2 sm:order-4 sm:col-span-4 md:order-3 xl:col-span-6">
-                <WaveCanvas bufferRef={bufferRef} signalKey="II" label="Lead II" />
+                <WaveCanvas bufferRef={buffer} signalKey="II" label="Lead II" />
               </div>
               <div className=" text-sm text-left col-span-2 sm:order-5 sm:col-span-4 md:order-5 xl:col-span-6">
-                <WaveCanvas bufferRef={bufferRef} signalKey="spo2" label="spo2" />
+                <WaveCanvas bufferRef={buffer} signalKey="spo2" label="spo2" />
               </div>
               <div className="h-full col-span-1 sm:order-9 md:order-9">
                 <VitalDisplay param={ETCO2_PARAM} value={simOptions.etco2} />
@@ -104,7 +113,7 @@ const AppUILayout: React.FC = () => {
                 <VitalDisplay param={RESP_PARAM} value={simOptions.respRate} />
               </div>
               <div className=" text-sm text-left col-span-2 sm:order-11 sm:col-span-4 md:order-11 xl:col-span-6">
-                <WaveCanvas bufferRef={bufferRef} signalKey="etco2" label="EtCO₂" />
+                <WaveCanvas bufferRef={buffer} signalKey="etco2" label="EtCO₂" />
               </div>
             </div>
           )}

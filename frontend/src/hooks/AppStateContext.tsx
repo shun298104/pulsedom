@@ -1,4 +1,3 @@
-// AppStateContext.tsx
 import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
 import { RhythmEngine } from '../engine/RhythmEngine';
 import { GraphEngine } from '../engine/GraphEngine';
@@ -10,12 +9,16 @@ import { updateGraphEngineFromSim } from '../engine/GraphControl';
 import { decodeSimOptionsFromURL } from '../utils/simOptionsURL';
 import { useAlarmSound } from '../hooks/useAlarmSound';
 import { stopAlarm as stopAlarmLib } from '../lib/AlarmAudioController';
-import { PULSEDOM_VERSION } from '../constants/version';
 import { BreathEngine } from '../engine/BreathEngine';
-import { useSimOptionsSync } from '../hooks/useSimOptionsSync';
+import { nanoid } from 'nanoid';
+import { useCasesSync } from './useCasesSync';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import isEqual from 'lodash.isequal';
+import { PULSEDOM_VERSION } from '../constants/version';
 
 interface AppStateContextProps {
-  isSimOptionsReady: boolean;
+  isCaseReady: boolean;
   bufferRef: React.RefObject<WaveBufferMap>;
   alarmAudioRef: React.RefObject<HTMLAudioElement | null>;
   hr: number;
@@ -33,13 +36,18 @@ interface AppStateContextProps {
   stopAlarm: () => void;
   breathEngine: BreathEngine;
   resetSimOptions: () => void;
+  shareCase: () => Promise<void>;
+  mode: "demo" | "server" | "edit" | "view";
+  setMode: React.Dispatch<React.SetStateAction<"demo" | "server" | "edit" | "view">>;
+  remoteBuffer: WaveBufferMap | null;
 }
 
 const AppStateContext = createContext<AppStateContextProps | undefined>(undefined);
 
 export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const params = new URLSearchParams(window.location.search);
-  const roomId = params.get("room") || "demo";
+  const caseId = params.get("case") || "demo";
+  const isDemo = caseId === "demo";
 
   const [simOptions, setSimOptions] = useState<SimOptions>(() => {
     const encoded = params.get("sim");
@@ -49,9 +57,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const simOptionsRef = useRef(simOptions);
   useEffect(() => { simOptionsRef.current = simOptions; }, [simOptions]);
 
-  const graphRef = useRef<GraphEngine | null>(null);
   const [hr, setHr] = useState(-1);
   const [isEditorVisible, setEditorVisible] = useState(true);
+  const graphRef = useRef<GraphEngine | null>(null);
 
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
@@ -69,6 +77,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const bufferRef = useRef<WaveBufferMap>(
     Object.fromEntries(bufferKeys.map(key => [key, new WaveBuffer()]))
   );
+  // クライアント用Firestore受信buffer
+  const [remoteBuffer, setRemoteBuffer] = useState<WaveBufferMap | null>(null);
 
   const breathEngineRef = useRef<BreathEngine>(
     new BreathEngine({
@@ -77,31 +87,33 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })
   );
 
-  const [isSimOptionsReady, setSimOptionsReady] = useState(false);
-  const { updateRemoteSimOptions } = useSimOptionsSync(
-    roomId,
-    (options) => {
-      setSimOptions(options);
-      setSimOptionsReady(true);
-    },
-    graphRef,
-    breathEngineRef
-  );
+  const [mode, setMode] = useState<"demo" | "server" | "edit" | "view">(() => {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get("mode");
+    if (m === "demo" || m === "server" || m === "edit" || m === "view") return m;
+    return "demo";
+  });
 
+  // RhythmEngineはserverモードまたはdemo時に生成
   const [engine, setEngine] = useState<RhythmEngine | null>(null);
+  const [isCaseReady, setCaseReady] = useState(isDemo);
+
   useEffect(() => {
     const graph = graphRef.current ?? (graphRef.current = GraphEngine.createDefaultEngine());
     updateGraphEngineFromSim(simOptions, graph);
-  }, [isSimOptionsReady]);
+  }, [isCaseReady]);
 
+  // --- RhythmEngine起動（serverモード or demo時は必ず起動） ---
   useEffect(() => {
-    if (!isSimOptionsReady) return;
-
+    if (!isCaseReady) return;
+    if (!isDemo && mode !== "server") {
+      setEngine(null);
+      return;
+    }
     breathEngineRef.current.update({
       respRate: simOptions.respRate,
       etco2: simOptions.etco2,
     });
-
     const rhythmEngine = new RhythmEngine({
       graph: graphRef.current as GraphEngine,
       bufferRef,
@@ -120,7 +132,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       onHrUpdate: setHr,
       breathEngine: breathEngineRef.current,
     });
-
     setEngine(rhythmEngine);
     rhythmEngine.setOnHrUpdate(setHr);
 
@@ -133,19 +144,75 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       animationId = requestAnimationFrame(loop);
     };
-    console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION} (RE initialized after simOptionsReady)`);
+    console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION}`);
     animationId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(animationId);
-  }, [isSimOptionsReady]);
+  }, [isCaseReady, mode, isDemo]); // isDemo依存追加
+
+  // --- buffer Firestore同期：useCasesSyncにmodeを渡して責務分離 ---
+  const { updateRemoteCases } = useCasesSync(
+    caseId,
+    (options: SimOptions) => {
+      // SimOptions受信時のロギングと差分判定
+       console.log("[onSnapshot] Firestore simOptions received", options.getRaw(), "at", Date.now());
+      if (isEqual(options.getRaw(), simOptionsRef.current.getRaw())) {
+        console.log("[onSnapshot] skip setSimOptions (no diff)");
+        return;
+      }
+      setSimOptions(options);
+      setCaseReady(true);
+    },
+    bufferRef,
+    (bufferObj) => {
+      // bufferObj: Record<string, number[]>
+      console.log("[onSnapshot] Firestore buffer received", bufferObj);
+      setRemoteBuffer(WaveBuffer.fromBufferMap(bufferObj));
+    }
+  );
+
+
+  const pushBufferToFirestore = async () => {
+    if (!caseId || !bufferRef.current) return;
+    const ref = doc(db, "cases", caseId);
+    const bufferObj: any = {};
+    for (const [key, buf] of Object.entries(bufferRef.current)) {
+      bufferObj[key] = buf.toArray();
+    }
+    await updateDoc(ref, {
+      buffer: bufferObj,
+    });
+  };
+
+  useEffect(() => {
+    if (isDemo) return; // demo時はFirestoreにpushしない
+    if (mode !== "server") return;
+    const interval = setInterval(() => {
+      pushBufferToFirestore();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [mode, caseId, isDemo]);
+
+  // サーバのみbufferをFirestoreにpush
+  useEffect(() => {
+    if (isDemo) return; // demo時はFirestoreにpushしない
+    if (mode !== "server") return;
+    if (!bufferRef.current) return;
+    const interval = setInterval(() => {
+      pushBufferToFirestore?.();
+    }, 100);
+    return () => clearInterval(interval);
+  }, [mode, pushBufferToFirestore, isDemo]);
 
   const resetSimOptions = () => {
     const resetOptions = new SimOptions(createDefaultSimOptions());
     updateSimOptions(resetOptions);
   };
 
-  /* UPDATE SIMULATION OPTIONS */
   const updateSimOptions = (next: SimOptions) => {
+    console.log("[updateSimOptions] called", next.getRaw());
+    if (isEqual(next.getRaw(), simOptionsRef.current.getRaw())) return;
+
     const bp_diff = next.sysBp - simOptionsRef.current.sysBp;
     if (bp_diff !== 0) next.diaBp = simOptionsRef.current.diaBp + (bp_diff / 3 * 2);
 
@@ -158,8 +225,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const graph = graphRef.current;
     if (graph) { updateGraphEngineFromSim(next, graph); }
 
-    updateRemoteSimOptions(next);
-
+    if (!isDemo && updateRemoteCases) {
+      console.log("[updateSimOptions] updateRemoteCases writing to Firestore:", next.getRaw());
+      updateRemoteCases(next);
+    }
     breathEngineRef.current.update({
       respRate: next.respRate,
       etco2: next.etco2,
@@ -190,8 +259,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        console.log(bufferRef)
-        console.log("[ESC] simulation suspended.")
         setIsSimRunning(false);
       }
     };
@@ -199,8 +266,29 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => window.removeEventListener('keydown', handleKeydown);
   }, []);
 
+  const shareCase = async () => {
+    console.log("[Sharecase]", isDemo, caseId, simOptions.getRaw());
+    if (isDemo) {
+      const newCaseId = nanoid(6);
+      const ref = doc(db, "cases", newCaseId);
+      console.log("[Sharecase] New case created (before setDoc):", newCaseId);
+      try {
+        await setDoc(ref, {
+          ...simOptions.getRaw(),
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 6),
+        });
+        console.log("[Sharecase] setDoc success:", newCaseId);
+        window.location.search = `?case=${newCaseId}&mode=server`;
+      } catch (e) {
+        console.log("[Sharecase] setDoc error:", e);
+      }
+    } else {
+      window.alert(`Case shared!\nURL: ${window.location.origin}/pulsedom/?case=${caseId}&mode=server`);
+    }
+  };
+
   const value: AppStateContextProps = {
-    isSimOptionsReady,
+    isCaseReady,
     bufferRef,
     alarmAudioRef,
     hr,
@@ -217,7 +305,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     alarmMessages,
     stopAlarm,
     breathEngine: breathEngineRef.current,
-    resetSimOptions
+    resetSimOptions,
+    shareCase,
+    mode,
+    setMode,
+    remoteBuffer,
   };
 
   return (
