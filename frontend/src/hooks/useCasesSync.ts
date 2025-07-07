@@ -30,10 +30,8 @@ export function useCasesSync(
       console.log('[useCasesSync] snap.data:', snap.data && snap.data());
       if (!snap.exists()) return;
       const data = snap.data();
-      if (data) {
-        const simOptions = new SimOptions(data as any);
-        onSimOptions(simOptions);
-      }
+      const simOptions = new SimOptions(data.simOptions);
+      onSimOptions(simOptions);
       if (onBuffer && data.buffer) {
         onBuffer(data.buffer as Record<string, number[]>);
       }

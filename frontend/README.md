@@ -83,7 +83,7 @@ Path単位での伝導判定、発火・ブロック・伝導イベントを記�
 STATEはGE進行中のみ更新、CONFIGへの干渉は不可
 
 ## 2.2 ◾️ RhythmEngine (RE)　// src/engine/RhythmEngine.ts
-PULSEDOMシミュレーションのコア制御エンジン。
+PULSEDOMシミュレーションのコア制御エンジン。AppStateContextからページロード時に1度だけ生成される。
 GraphEngine, WaveformController, ContractionDetector, AudioControllerを協調させ、tick進行・状態管理・波形合成など全体のフロー制御のみを担当。
 各種Controller/Detectorへ責務委譲し、RE本体は「コア進行管理」のみ
 PI（脈波振幅）管理、周期ごとのPI切り替え、pulseWave関数の再生成はREで実施
@@ -134,6 +134,7 @@ PULSEDOMのUIは「全グローバル状態をContextで一元管理し、props�
 主要なグローバル状態（SimOptions、アラーム、Beep音、描画バッファ等）は AppStateContext で管理され、全てのUIコンポーネントは useAppState で直接取得操作できます。
 ## 3.1 AppStateContext // src/hooks/AppStateContext.tsx + src/hooks/useCasesSync.ts）
 PULSEDOM全体の「グローバル状態・シミュレーション状態・各種エンジン・UI制御フラグ」を一元管理するContext層。
+画面ロード時にmodeを判定し、demoモード（デフォルト）の場合はsimoptionsを初期化し、共有モードの場合はfirestoreからsimoptionsを復元する。
 UI側は useAppState フックで直接全プロパティ/ハンドラにアクセスでき、props伝播は不要。
 
 **主な責務一覧:**

@@ -105,8 +105,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // --- RhythmEngine起動（serverモード or demo時は必ず起動） ---
   useEffect(() => {
-    if (!isCaseReady) return;
+    if (!isSimRunningRef.current) return;
+
+    if (!isCaseReady) {
+      console.log("RhythmEngine useEffect: isCaseReady==false");
+      return;
+    }
     if (!isDemo && mode !== "server") {
+      console.log("RhythmEngine useEffect: engine=null");
       setEngine(null);
       return;
     }
@@ -139,57 +145,54 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     let animationId: number;
     const loop = (now: number) => {
-      if (isSimRunningRef.current) { rhythmEngine.step(now / 1000); }
+      if (isSimRunningRef.current) {
+        rhythmEngine.step(now / 1000);
+      }
       animationId = requestAnimationFrame(loop);
     };
     console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION}`);
     animationId = requestAnimationFrame(loop);
 
-    return () => cancelAnimationFrame(animationId);
-  }, [isCaseReady, mode, isDemo]); // isDemo依存追加
+    // buffer push起動
+    const interval = setInterval(() => {
+      pushBufferToFirestore();
+    }, 1000);
+
+    return () => {
+      // 両方のクリーンアップ
+      cancelAnimationFrame(animationId);
+      clearInterval(interval);
+    };
+  }, [isCaseReady]);
 
   // --- buffer Firestore同期：useCasesSyncにmodeを渡して責務分離 ---
   const { updateRemoteCases } = useCasesSync(
     caseId,
     (options: SimOptions) => {
-      // SimOptions受信時のロギングと差分判定
-      console.log("[onSnapshot] Firestore simOptions received", options.getRaw(), "at", Date.now());
-      if (isEqual(options.getRaw(), simOptionsRef.current.getRaw())) {
-        console.log("[onSnapshot] skip setSimOptions (no diff)");
-        return;
-      }
+      if (isCaseReady && isEqual(options.getRaw(), simOptionsRef.current.getRaw())) return;
       setSimOptions(options);
       setCaseReady(true);
     },
     bufferRef,
     (bufferObj) => {
-      // bufferObj: Record<string, number[]>
+      if (mode === "server") return; // serverモードでは受信しない
       console.log("[onSnapshot] Firestore buffer received", bufferObj);
       setRemoteBuffer(WaveBuffer.fromBufferMap(bufferObj));
     }
   );
 
+
   const pushBufferToFirestore = async () => {
-    if (!isSimRunningRef.current) { return; }
+    if (!isSimRunningRef.current) return;
     if (!caseId || !bufferRef.current) return;
     const ref = doc(db, "cases", caseId);
     const bufferObj: any = {};
     for (const [key, buf] of Object.entries(bufferRef.current)) {
       bufferObj[key] = buf.toArray();
     }
-    await updateDoc(ref, {
-      buffer: bufferObj,
-    });
+    console.log("bufferObj before Firestore push", bufferObj)
+    await updateDoc(ref, { buffer: bufferObj });
   };
-
-  useEffect(() => {
-    if (isDemo) return; // demo時はFirestoreにpushしない
-    if (mode !== "server") return;
-    const interval = setInterval(() => {
-//      pushBufferToFirestore();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [mode, caseId, isDemo]);
 
   const resetSimOptions = () => {
     const resetOptions = new SimOptions(createDefaultSimOptions());
@@ -197,7 +200,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateSimOptions = (next: SimOptions) => {
-    console.log("[updateSimOptions] called", next.getRaw());
     if (isEqual(next.getRaw(), simOptionsRef.current.getRaw())) return;
 
     const bp_diff = next.sysBp - simOptionsRef.current.sysBp;
@@ -214,7 +216,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (!isDemo && updateRemoteCases) {
       console.log("[updateSimOptions] updateRemoteCases writing to Firestore:", next.getRaw());
-      updateRemoteCases(next);
+      updateRemoteCases(next).catch(e => {
+        console.log("[updateSimOptions] updateRemoteCases error:", e);
+      });
     }
     breathEngineRef.current.update({
       respRate: next.respRate,
@@ -261,7 +265,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.log("[Sharecase] New case created (before setDoc):", newCaseId);
       try {
         await setDoc(ref, {
-          ...simOptions.getRaw(),
+          simOptions: simOptions.getRaw(),
           expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 6),
         });
         console.log("[Sharecase] setDoc success:", newCaseId);

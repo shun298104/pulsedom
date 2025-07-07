@@ -30,9 +30,6 @@ const AppUILayout: React.FC = () => {
       ? { current: (remoteBuffer ?? {}) as Record<string, { getArray: () => number[]; size: () => number }> }
       : bufferRef;
   console.log('mode:', mode);
-  console.log('remoteBuffer:', remoteBuffer);
-  console.log('bufferRef.current:', bufferRef.current);
-  console.log('buffer:', buffer);
 
   return (
     <div className="relative min-h-screen bg-gray-50">
