@@ -1,6 +1,6 @@
 # 0. Team
-- おじさん（Project Manager, Lead Developer, Architect, Owner, Designer, Programer, Debugger, Marketing, PR ...）
-- さーちゃん（GPT Dev Assistant, ギャル）
+- shun（Project Manager, Lead Developer, Architect, Owner, Designer, Programer, Debugger, Marketing, PR ...）
+- GPT Dev Assistant
 
 # 1. データ構造
 ## 1.1 ◾️ SimOptions　//src/types/SimOptions.ts
@@ -152,8 +152,16 @@ UI側は useAppState フックで直接全プロパティ/ハンドラにアク�
 【副作用/イベント管理】  
 - useEffectでSimOptionsや各種状態の更新監視／エンジン・バッファ・UIとの同期
 - Firestore双方向同期時の状態遷移制御
-- **Firestore同期**
-  - caseIdが"demo"以外のとき、useCasesSync経由でFirestoreのcases/{caseId}ドキュメントとSimOptionsを双方向リアルタイム同期
+
+### 3.1.1 シミュレーションmodeについて
+PULSEDOMでは、AppStateContextロード時に動作モード(mode)を判定します。
+- `demo`:   デフォルトモード。REおよびGEの駆動を行う。Firestore同期なし。全データはローカルのみで保持。
+- `server`: CaseIdをKeyにして、FirestoreとSimOptionsをリアルタイム同期。REおよびGEの駆動を行い、bufferをfirebaseに保存する。
+- `edit`:　 CaseIdをKeyにして、FirestoreとSimOptionsをリアルタイム同期。bufferはfirebaseから読み込み同期する。
+- `view`:   CaseIdをKeyにして、FirestoreとSimOptionsをリアルタイム同期（reaOnly）。bufferはfirebaseから読み込み同期する。
+modeの判定・指定方法は、実装ファイル（src/hooks/AppStateContext.tsx）を参照のこと。
+### 3.1.2 fiebase同期
+  - modeが"demo"以外のとき、useCasesSync経由でFirestoreのcases/{caseId}ドキュメントとSimOptionsを双方向リアルタイム同期
   - Firestore→onSnapshot監視で他ウィンドウ・端末とSimOptionsを即時同期
   - SimOptions変更時はisEqualで差分判定し、内容が変化した場合のみFirestoreへ反映
   - demoモードはFirestoreアクセスなし（ローカルのみ）
@@ -210,7 +218,7 @@ multipath衝突はNodeでMAX_DELAY60msまで待って最も早く到達するパ
 Node/Pathの**CONFIG**はGCが管理、**STATE**はGEまたは伝導時に自己管理
 
 # 5. ディレクトリマップ
-frontend/
+root/
 ├─ assets
 ├─ audio
 ├─ components
@@ -244,8 +252,6 @@ PVCのT波幅表現のためのsigma調整 など
 WebSocket/PWA等を用いたスマホ連携・UIラップ
 i18n（多言語対応）、LPの作成、収益化モデル検討
 テーマプリセットの導入（rawData.themeにthemeId格納でURL共有もテーマ維持）
-
-## C) さーちゃんの「やりたいこと」
 ドクターさーちゃん（心電図解説モード）
 シナリオ自動生成AI（Af→VT→VFなどストーリー自動生成）
 
