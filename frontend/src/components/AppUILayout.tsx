@@ -5,37 +5,31 @@ import AccordionUIMock from './AccordionUIMock';
 import { PanelRightOpen, PanelRightClose, BellOff } from 'lucide-react';
 import { HR_PARAM, SPO2_PARAM, NIBP_SYS_PARAM, NIBP_DIA_PARAM, ETCO2_PARAM, RESP_PARAM } from '../types/VitalParameter';
 import { useAppState } from '../hooks/AppStateContext';
-import { useAlarmSound } from '../hooks/useAlarmSound';
 import { PULSEDOM_VERSION } from '../constants/version';
 
 const leads12 = ["I", "aVR", "V1", "V4", "II", "aVL", "V2", "V5", "III", "aVF", "V3", "V6"];
 
 const AppUILayout: React.FC = () => {
-  // グローバルstate
   const {
     bufferRef,
     hr,
     isEditorVisible,
     setEditorVisible,
     simOptions,
-    mode,
-    remoteBuffer,
-  } = useAppState();
-
-  // --- アラーム責務はuseAlarmSoundフックだけで完結 ---
-  const {
+    stopAlarm,
     alarmLevel,
     alarmMessages,
-    isAlarmOn,
-    toggleAlarm,
-    stopAlarm,
-  } = useAlarmSound(simOptions, hr);
+    alarmAudioRef,
+    mode,             // 追加
+    remoteBuffer,     // 追加
+  } = useAppState();
 
   const [is12LeadMode, set12LeadMode] = useState(false);
   const buffer =
     mode === "edit" || mode === "view"
       ? { current: (remoteBuffer ?? {}) as Record<string, { getArray: () => number[]; size: () => number }> }
       : bufferRef;
+  console.log('mode:', mode);
 
   return (
     <div className="relative min-h-screen bg-gray-50">
@@ -73,7 +67,7 @@ const AppUILayout: React.FC = () => {
             <span className="pl-4">
               {alarmLevel === 'normal'
                 ? `Vital Signs Simulator PULSEDOM ${PULSEDOM_VERSION}`
-                : (alarmMessages ?? [])
+                : [...alarmMessages]
                   .sort((a) => a.includes('Critical') ? -1 : 1)
                   .map(msg => `[${msg}]`)
                   .join(' ')
@@ -121,7 +115,7 @@ const AppUILayout: React.FC = () => {
             </div>
           )}
 
-          {/* 12誘導モード */}
+          {/* 12  */}
           {is12LeadMode && (
             <>
               <div className="grid grid-cols-4 gap-2 mb-4">
@@ -146,8 +140,7 @@ const AppUILayout: React.FC = () => {
           </div>
         )}
       </div>
-      {/* Alarm用audioはuseAlarmSound内でref管理するか、不要なら消してOK */}
-      {/* <audio ref={alarmAudioRef} preload="auto" /> */}
+      <audio ref={alarmAudioRef} preload="auto" />
     </div>
   );
 };
