@@ -2,8 +2,7 @@ import React, { createContext, useContext, useRef, useState, useEffect } from 'r
 import { RhythmEngine } from '../engine/RhythmEngine';
 import { GraphEngine } from '../engine/GraphEngine';
 import { unlockAudio } from '../audio/unlockAudio';
-import { leadVectors } from '../constants/leadVectors';
-import { WaveBuffer, WaveBufferMap } from '../engine/WaveBuffer';
+import { WaveBufferMap } from '../engine/WaveBuffer';
 import { createDefaultSimOptions, SimOptions } from '../types/SimOptions';
 import { updateGraphEngineFromSim } from '../engine/GraphControl';
 import { decodeSimOptionsFromURL } from '../utils/simOptionsURL';
@@ -12,10 +11,11 @@ import { stopAlarm as stopAlarmLib } from '../lib/AlarmAudioController';
 import { BreathEngine } from '../engine/BreathEngine';
 import { nanoid } from 'nanoid';
 import { useCasesSync } from './useCasesSync';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import isEqual from 'lodash.isequal';
 import { PULSEDOM_VERSION } from '../constants/version';
+import { useBufferContext } from './BufferContext';
 
 interface AppStateContextProps {
   isCaseReady: boolean;
@@ -67,18 +67,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isAlarmOn, setIsAlarmOn] = useState(false);
   const isAlarmOnRef = useRef(false);
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
-  const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr, alarmAudioRef, isAlarmOn);
+  const { alarmLevel, alarmMessages } = useAlarmSound(simOptions, hr);
   const stopAlarm = () => stopAlarmLib(alarmAudioRef.current, alarmLevel);
 
-  const bufferKeys = [
-    ...Object.keys(leadVectors),
-    'spo2', 'art', 'etco2',
-  ] as const;
-  const bufferRef = useRef<WaveBufferMap>(
-    Object.fromEntries(bufferKeys.map(key => [key, new WaveBuffer()]))
-  );
-  // クライアント用Firestore受信buffer
-  const [remoteBuffer, setRemoteBuffer] = useState<WaveBufferMap | null>(null);
+  const { bufferRef, remoteBuffer, pushBufferToFirestore } = useBufferContext();
 
   const breathEngineRef = useRef<BreathEngine>(
     new BreathEngine({
@@ -105,8 +97,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // --- RhythmEngine起動（serverモード or demo時は必ず起動） ---
   useEffect(() => {
-    if (!isSimRunningRef.current) return;
-
     if (!isCaseReady) {
       console.log("RhythmEngine useEffect: isCaseReady==false");
       return;
@@ -153,46 +143,23 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     console.log(`🚀 PULSEDOM Version: ${PULSEDOM_VERSION}`);
     animationId = requestAnimationFrame(loop);
 
-    // buffer push起動
-    const interval = setInterval(() => {
-      pushBufferToFirestore();
-    }, 1000);
+    const interval = setInterval(() => { pushBufferToFirestore(); }, 1000);    // buffer push起動
 
     return () => {
-      // 両方のクリーンアップ
       cancelAnimationFrame(animationId);
       clearInterval(interval);
     };
   }, [isCaseReady]);
 
-  // --- buffer Firestore同期：useCasesSyncにmodeを渡して責務分離 ---
+  // --- Firestore同期：useCasesSyncにmodeを渡して責務分離 ---
   const { updateRemoteCases } = useCasesSync(
     caseId,
     (options: SimOptions) => {
       if (isCaseReady && isEqual(options.getRaw(), simOptionsRef.current.getRaw())) return;
       setSimOptions(options);
       setCaseReady(true);
-    },
-    bufferRef,
-    (bufferObj) => {
-      if (mode === "server") return; // serverモードでは受信しない
-      console.log("[onSnapshot] Firestore buffer received", bufferObj);
-      setRemoteBuffer(WaveBuffer.fromBufferMap(bufferObj));
     }
   );
-
-
-  const pushBufferToFirestore = async () => {
-    if (!isSimRunningRef.current) return;
-    if (!caseId || !bufferRef.current) return;
-    const ref = doc(db, "cases", caseId);
-    const bufferObj: any = {};
-    for (const [key, buf] of Object.entries(bufferRef.current)) {
-      bufferObj[key] = buf.toArray();
-    }
-    console.log("bufferObj before Firestore push", bufferObj)
-    await updateDoc(ref, { buffer: bufferObj });
-  };
 
   const resetSimOptions = () => {
     const resetOptions = new SimOptions(createDefaultSimOptions());
